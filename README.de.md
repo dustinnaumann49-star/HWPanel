@@ -12,6 +12,16 @@ Alle Obergrenzen sind die Treiber-Standardwerte, die beim ersten Start des Daemo
 
 GUI, Kommandozeile, Installationsskript und die Meldungen des Daemons (Fehler, Ereignisse im Verlauf) gibt es auf Deutsch und Englisch, sie folgen der Systemsprache. Das Journal (`journalctl -u hwpanel`) ist immer Englisch.
 
+## Status
+
+Version 0.1.0. Entwickelt und getestet auf einem einzigen System (siehe [Getestet mit](#getestet-mit)). Das Socket-Protokoll und die Dateien in `/var/lib/hwpanel/` können sich noch ändern.
+
+## Wichtig
+
+Dieses Projekt pflege ich in meiner Freizeit. Ich antworte und behebe Fehler nach bestem Ermessen, ohne feste Zeiten oder Zusagen. Die Nutzung erfolgt auf eigene Verantwortung. Bitte teste vor dem Einsatz auf einem System, auf das es ankommt.
+
+hwpanel ändert Hardware-Einstellungen (GPU- und CPU-Takt, Power-Limit, Lüfterdrehzahl). Es lehnt Werte über den Treiber-Standardwerten ab, ändert nie die Spannung und sichert den Lüfter mit Schutzregeln und einem Rückfall auf die Treiber-Automatik ab (siehe [Lüftersteuerung](#lüftersteuerung) und [Grenzen und Verhalten](#grenzen-und-verhalten)). Es gibt eine automatische Testsuite auf nachgebauter Hardware, und es läuft auf meinem eigenen Rechner, aber auf anderer Hardware oder mit anderer Konfiguration kann es sich trotzdem unerwartet verhalten. Bitte melde Probleme mit Logs und Systeminformationen (siehe [Support und Mitarbeit](#support-und-mitarbeit)).
+
 ## Voraussetzungen
 
 - Linux mit systemd (die mitgelieferte Unit nutzt nur Optionen ab systemd 245) und Python ≥ 3.8 für Daemon und CLI. Sie brauchen nur die Python-Standardbibliothek und sysfs.
@@ -110,6 +120,15 @@ Die mitgelieferten Profile `Gaming` und `KI` enthalten keine Lüfterkurve (Autom
 - Lüfter: nur über Kurve mit Schutzregeln (siehe oben), nie `pwm1_enable=0` (Lüfter aus/Vollgas wird nicht geschrieben).
 - Konflikte: `lactd` und `power-profiles-daemon` können dieselben Werte ändern.
 
+## Bekannte Einschränkungen
+
+- Nur auf einem System getestet (RDNA 2, `intel_pstate`). Neuere GPUs, `amd-pstate`, ältere Python- und systemd-Versionen und andere Distributionen sind ungetestet (siehe [Getestet mit](#getestet-mit)).
+- Gesteuert wird nur die erste gefundene AMD-Grafikkarte. Systeme mit mehreren AMD-GPUs (zum Beispiel eine AMD-Grafikeinheit im Prozessor plus eine dedizierte Karte) sind ungetestet.
+- Die Takt-Obergrenzen brauchen die Overdrive-Schnittstelle (`pp_od_clk_voltage`), auf manchen Systemen nur mit `amdgpu.ppfeaturemask=0xffffffff`. Ohne sie sollten Überwachung, Power-Limit und Lüfter weiter funktionieren, das ist aber ungetestet.
+- Der Lüfter-Rückfall auf Automatik nach einem Daemon-Absturz ist auf echter Hardware getestet (siehe [Diagnose](#diagnose)). Der Rückfall nach einem Hänger (systemd-Watchdog) ist nur durch die Unit-Datei und die Tests abgedeckt, aber nicht live ausprobiert.
+- Die Lüfterkonfiguration bleibt über einen Daemon-Neustart nicht erhalten: Der Lüfter steht auf Automatik, bis ein Profil angewendet wird (siehe [Lüftersteuerung](#lüftersteuerung)).
+- RAM: nur Anzeige. Das Tray-Icon braucht eine Desktopumgebung mit StatusNotifier-Unterstützung.
+
 ## Sicherheit
 
 - Der Daemon läuft als root, aber in einem systemd-Sandkasten (`hwpanel.service`): Dateisystem schreibgeschützt (außer `/sys` und `/var/lib/hwpanel`), kein Zugriff auf `/home`, kein Netzwerk (nur der Unix-Socket), nur die root-Rechte `CAP_CHOWN` und `CAP_DAC_OVERRIDE`, Syscall-Filter `@system-service`. `systemd-analyze security hwpanel.service` bewertet die Unit mit 1.9 (OK).
@@ -148,6 +167,17 @@ python3 tests/bench_gui.py                            # Zeichenzeiten (Start, Se
 Die Quelltexte sind Englisch. Jede Sprache ist eine einfache JSON-Datei `locales/<kürzel>.json`, die den englischen Text auf die Übersetzung abbildet; der Schlüssel `_name` ist der Name der Sprache in ihrer eigenen Sprache. Es gibt keinen Kompilierschritt: Datei anlegen, und die Sprache erscheint in der GUI. Fehlende Einträge fallen auf Englisch zurück. `tests/test_i18n.py` prüft, dass jeder Text im Quellcode übersetzt ist und Platzhalter und Markup übereinstimmen.
 
 Der Daemon selbst hat keine Sprache. Jede Meldung, die er über den Socket sendet, besteht aus einem englischen Text (die Felder `error`, `errors`, `notes` und der `text` eines Ereignisses im Verlauf) und einer Vorlage mit Argumenten (`error_msg`, `errors_msg`, `notes_msg` und die `msg` eines Ereignisses), die GUI und CLI übersetzen. Skripte, die den Socket lesen, können einfach den englischen Text nutzen. Der Zustand der Lüfter-Hardware (`hw_mode`) ist `manual`, `automatic` oder `off`.
+
+## Support und Mitarbeit
+
+- Fehlerberichte und Funktionswünsche: der GitHub-Issue-Tracker dieses Repositorys. Für Fehlerberichte bitte die Vorlage benutzen: Sie fragt Version, Distribution, Kernel, Hardware und Logs ab und nennt die Befehle dafür.
+- Pull Requests: siehe [CONTRIBUTING.de.md](CONTRIBUTING.de.md).
+- Sicherheitsprobleme und andere vertrauliche Anliegen: bitte nicht über öffentliche Issues, siehe [SECURITY.de.md](SECURITY.de.md).
+- Ich bemühe mich, innerhalb weniger Tage zu antworten, kann es aber nicht versprechen.
+
+## KI-Unterstützung
+
+Dieses Projekt wurde mit umfangreicher KI-Unterstützung entwickelt (Claude Code von Anthropic). Ich verstehe und pflege den gesamten Code, teste Änderungen selbst und behebe Fehler.
 
 ## Lizenz
 

@@ -12,6 +12,16 @@ all upper limits are the driver defaults, read when the daemon starts for the fi
 
 The GUI, the command-line output, the installer and the daemon's messages (errors, history events) are available in English and German and follow the system language. The journal (`journalctl -u hwpanel`) is always in English.
 
+## Status
+
+Version 0.1.0. Developed and tested on a single system (see [Tested with](#tested-with)). The socket protocol and the files in `/var/lib/hwpanel/` may still change.
+
+## Important
+
+This project is maintained in my spare time. I answer and fix issues as best I can, without fixed times or promises. Use it at your own risk, and test it before relying on it on a system that matters.
+
+hwpanel changes hardware settings (GPU and CPU clocks, power limit, fan speed). It rejects values above the driver defaults, never changes the voltage, and protects the fan with safety rules and a fallback to the driver's automatic mode (see [Fan control](#fan-control) and [Limits and behavior](#limits-and-behavior)). It has an automated test suite on emulated hardware and runs on my own machine, but other hardware or configurations can still behave unexpectedly. Please report problems with logs and system information (see [Support and contributing](#support-and-contributing)).
+
 ## Requirements
 
 - Linux with systemd (the shipped unit only uses options available since systemd 245) and Python ≥ 3.8 for the daemon and the CLI. They need only the Python standard library and sysfs.
@@ -110,6 +120,15 @@ The shipped profiles `Gaming` and `KI` contain no fan curve (automatic). Create 
 - Fan: only via a curve with protection rules (see above), never `pwm1_enable=0` (the fan-off/full-speed mode is never written).
 - Conflicts: `lactd` and `power-profiles-daemon` can change the same values.
 
+## Known limitations
+
+- Tested on one system only (RDNA 2, `intel_pstate`). Newer GPUs, `amd-pstate`, older Python and systemd versions and other distributions are untested (see [Tested with](#tested-with)).
+- Only the first AMD graphics card that is found is controlled. Systems with several AMD GPUs (for example an AMD integrated GPU plus a dedicated card) are untested.
+- The clock limits need the Overdrive interface (`pp_od_clk_voltage`), on some systems only with `amdgpu.ppfeaturemask=0xffffffff`. Without it, monitoring, power limit and fan control should keep working, but this is untested.
+- The fan fallback to automatic after a daemon crash is tested on real hardware (see [Diagnostics](#diagnostics)). The fallback after a hang (systemd watchdog) is only covered by the unit file and the tests, not tried live.
+- The fan configuration is not kept across a daemon restart: the fan is on automatic until a profile is applied (see [Fan control](#fan-control)).
+- RAM is display only. The tray icon needs a desktop environment with StatusNotifier support.
+
 ## Security
 
 - The daemon runs as root, but inside a systemd sandbox (`hwpanel.service`): read-only file system (except `/sys` and `/var/lib/hwpanel`), no access to `/home`, no network (only the Unix socket), only the root capabilities `CAP_CHOWN` and `CAP_DAC_OVERRIDE`, syscall filter `@system-service`. `systemd-analyze security hwpanel.service` rates the unit 1.9 (OK).
@@ -148,6 +167,17 @@ python3 tests/bench_gui.py                            # measure drawing times (s
 The source texts are English. Each language is a plain JSON file `locales/<code>.json` that maps the English text to its translation; the key `_name` is the language's own name. There is no build step: add a file and the language appears in the GUI. Missing entries fall back to English. `tests/test_i18n.py` checks that every text in the source code is translated and that placeholders and markup match.
 
 The daemon itself has no language. Every message it sends over the socket is an English text (the fields `error`, `errors`, `notes` and the `text` of a history event) plus a template with arguments (`error_msg`, `errors_msg`, `notes_msg` and the `msg` of an event) that the GUI and the CLI translate. Scripts that read the socket can simply use the English text. The state of the fan hardware (`hw_mode`) is one of `manual`, `automatic` and `off`.
+
+## Support and contributing
+
+- Bug reports and feature requests: the GitHub issue tracker of this repository. For bug reports please use the template: it asks for the version, distribution, kernel, hardware and logs and lists the commands for them.
+- Pull requests: see [CONTRIBUTING.md](CONTRIBUTING.md).
+- Security problems and other sensitive matters: please do not use public issues, see [SECURITY.md](SECURITY.md).
+- I try to answer within a few days, but I cannot promise it.
+
+## AI assistance
+
+This project was developed with extensive AI assistance (Claude Code by Anthropic). I understand and maintain all of the code, test changes myself and fix bugs.
 
 ## License
 
