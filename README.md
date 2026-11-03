@@ -10,7 +10,7 @@ all upper limits are the driver defaults, read when the daemon starts for the fi
 - `gui/`: window and tray icon (PySide6/QML), same socket interface as the CLI.
 - Socket: `/run/hwpanel/hwpanel.sock` (one JSON object per line), data: `/var/lib/hwpanel/`.
 
-The GUI is available in English and German and follows the system language. The command-line output and the daemon's messages (errors, history events) are not translated yet and appear in German.
+The GUI, the command-line output and the installer are available in English and German and follow the system language. The daemon's messages (errors, history events) are not translated yet and appear in German.
 
 ## Requirements
 
@@ -50,7 +50,7 @@ hwpanel-gui --minimized               # tray only
 - Charts and cards are drawn without blur, and hidden pages do not draw. This keeps startup and page switches smooth.
 - History: the daemon keeps the last hour in memory, even when the GUI is closed. Dashed lines mark profile changes and manual changes. Hovering over a chart shows the values.
 - Hovering over a setting (the "?" next to a label, or an option such as an EPP value) shows a short explanation.
-- Language: a German system shows German, everything else English. The buttons *Auto / DE / EN* at the bottom of the sidebar switch it immediately; the choice is saved in `~/.config/hwpanel/gui.json`. For the CLI use `--lang CODE` or `HWPANEL_LANG`.
+- Language: a German system shows German, everything else English. The buttons *Auto / DE / EN* at the bottom of the sidebar switch it immediately; the choice is saved in `~/.config/hwpanel/gui.json`. The CLI and the installer follow the system language too: `hwpanelctl --lang en …` or the environment variable `HWPANEL_LANG=de|en` override it.
 - Tray: a left click opens/hides the window, the menu switches the profile. Closing the window only hides it; "Quit" in the menu or in the sidebar quits the GUI.
 - GUI autostart: the switch "Start at login" in the sidebar creates `~/.config/autostart/hwpanel-gui.desktop`.
 - Without tray support in the desktop environment (e.g. GNOME without the AppIndicator extension) closing the window quits the GUI.

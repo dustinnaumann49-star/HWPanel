@@ -187,9 +187,10 @@ SAME_IN_GERMAN = {
     "Auto", "Sensor", "Governor", "Turbo Boost", "Energy Performance Preference",
     "GPU max %1 MHz", "VRAM max %1 MHz", "CPU max %1 MHz", "Power %1 W", "EPP %1", "Governor %1",
     "Max %1 MHz · ", "max %1 MHz", "max %1", "Limit %1 W", "VRAM %1 MHz", "Junction %1 · Mem %2", "LACT: %1",
+    "CPU   {model}",
 }
 QML_FILES = sorted((ROOT / "gui" / "qml").glob("*.qml")) + [ROOT / "gui" / "qml" / "Fmt.js"]
-PY_FILES = sorted((ROOT / "gui").glob("*.py"))   # Daemon und CLI folgen in späteren Schritten
+PY_FILES = sorted((ROOT / "gui").glob("*.py")) + [ROOT / "hwpanelctl.py"]   # der Daemon folgt in einem späteren Schritt
 QSTR = re.compile(r'\bqsTr\(\s*"((?:[^"\\]|\\.)*)"')
 
 
@@ -214,7 +215,7 @@ def _tr_calls(tree):
 def python_texts(files=None):
     """Alle Quelltexte von tr(...) in Python-Dateien: Text -> Dateien."""
     out = {}
-    for f in files or PY_FILES + [ROOT / "hwpanelctl.py", ROOT / "hwpaneld.py"]:
+    for f in files or PY_FILES + [ROOT / "hwpaneld.py"]:
         for arg in _tr_calls(ast.parse(f.read_text(encoding="utf-8"))):
             out.setdefault(arg.value, []).append(f.name)
     return out

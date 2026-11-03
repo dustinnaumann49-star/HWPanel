@@ -6,6 +6,30 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Sprache der Meldungen: HWPANEL_LANG, sonst die Systemsprache (Rangfolge wie in hwpanel_i18n.py).
+# Es gibt Deutsch und Englisch; alles andere (und C/POSIX) ergibt Englisch.
+msg_lang=en
+pick="${HWPANEL_LANG:-auto}"
+if [[ "${pick,,}" == auto ]]; then
+    locale_name="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
+    case "$locale_name" in
+        ""|C|C.*|POSIX|POSIX.*) candidates="" ;;
+        *) candidates="${LANGUAGE:-}:$locale_name" ;;
+    esac
+    for part in ${candidates//:/ }; do
+        case "${part,,}" in
+            de|de_*|de.*|de@*) msg_lang=de; break ;;
+            en|en_*|en.*|en@*) break ;;
+        esac
+    done
+else
+    case "${pick,,}" in de|de_*|de.*|de@*) msg_lang=de ;; esac
+fi
+
+# say "englischer Text" "deutscher Text"
+say() { if [[ $msg_lang == de ]]; then printf '%s\n' "$2"; else printf '%s\n' "$1"; fi; }
+sayerr() { say "$@" >&2; }
+
 LIB=/usr/local/lib/hwpanel
 BIN=/usr/local/bin/hwpanelctl
 GUI_BIN=/usr/local/bin/hwpanel-gui
@@ -14,8 +38,19 @@ ICON=/usr/share/icons/hicolor/scalable/apps/hwpanel.svg
 UNIT=/etc/systemd/system/hwpanel.service
 DATA=/var/lib/hwpanel
 
+usage() {
+    say "Usage: sudo ./install.sh [--disable-lact | --uninstall]" "Aufruf: sudo ./install.sh [--disable-lact | --uninstall]"
+    say "  (no option)       install hwpanel (daemon, command line, GUI)" "  (ohne Option)     hwpanel installieren (Daemon, Kommandozeile, GUI)"
+    say "  --disable-lact    install and disable lactd (both write to the same sysfs files)" "  --disable-lact    installieren und lactd deaktivieren (beide schreiben in dieselben sysfs-Dateien)"
+    say "  --uninstall       remove hwpanel (data in $DATA stays)" "  --uninstall       hwpanel entfernen (Daten in $DATA bleiben)"
+    say "  -h, --help        show this help" "  -h, --help        diese Hilfe anzeigen"
+    say "The messages follow the system language; HWPANEL_LANG=de or en overrides it." "Die Meldungen folgen der Systemsprache; HWPANEL_LANG=de oder en überschreibt sie."
+}
+
+case "${1:-}" in -h|--help) usage; exit 0 ;; esac
+
 if [[ $EUID -ne 0 ]]; then
-    echo "Bitte mit sudo ausführen: sudo ./install.sh" >&2
+    sayerr "Please run with sudo: sudo ./install.sh" "Bitte mit sudo ausführen: sudo ./install.sh"
     exit 1
 fi
 
@@ -24,12 +59,18 @@ if [[ "${1:-}" == "--uninstall" ]]; then
     rm -f "$UNIT" "$BIN" "$GUI_BIN" "$DESKTOP" "$ICON"
     rm -rf "$LIB"
     systemctl daemon-reload
-    echo "Entfernt. Einstellungen und Profile in $DATA bleiben erhalten."
+    say "Removed. Settings and profiles in $DATA are kept." "Entfernt. Einstellungen und Profile in $DATA bleiben erhalten."
     exit 0
 fi
 
-command -v python3 >/dev/null || { echo "python3 fehlt (sudo pacman -S python)" >&2; exit 1; }
-python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' || { echo "Python >= 3.8 nötig" >&2; exit 1; }
+if ! command -v python3 >/dev/null; then
+    sayerr "python3 is missing (sudo pacman -S python)" "python3 fehlt (sudo pacman -S python)"
+    exit 1
+fi
+if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))'; then
+    sayerr "Python >= 3.8 is required" "Python >= 3.8 nötig"
+    exit 1
+fi
 
 install -d -m 755 "$LIB" "$DATA"
 install -m 755 hwpaneld.py "$LIB/hwpaneld.py"
@@ -56,7 +97,8 @@ if [[ -d gui ]]; then
 [Desktop Entry]
 Type=Application
 Name=hwpanel
-Comment=GPU/CPU-Überwachung und Taktbegrenzung
+Comment=GPU/CPU monitoring and clock limits
+Comment[de]=GPU/CPU-Überwachung und Taktbegrenzung
 Exec=hwpanel-gui
 Icon=hwpanel
 Terminal=false
@@ -68,7 +110,7 @@ DESKTOP_EOF
     fi
     if ! python3 -c 'import PySide6.QtQuick, PySide6.QtWidgets' 2>/dev/null; then
         echo
-        echo "HINWEIS: PySide6 fehlt, die GUI startet erst danach:  sudo pacman -S --needed pyside6"
+        say "NOTE: PySide6 is missing, the GUI only starts after:  sudo pacman -S --needed pyside6  (Arch/CachyOS; otherwise your distribution's PySide6 package)" "HINWEIS: PySide6 fehlt, die GUI startet erst danach:  sudo pacman -S --needed pyside6  (Arch/CachyOS; sonst das PySide6-Paket deiner Distribution)"
     fi
 fi
 
@@ -85,12 +127,12 @@ fi
 if systemctl is-enabled --quiet lactd.service 2>/dev/null || systemctl is-active --quiet lactd.service 2>/dev/null; then
     if [[ "${1:-}" == "--disable-lact" ]]; then
         systemctl disable --now lactd.service
-        echo "lactd deaktiviert."
+        say "lactd disabled." "lactd deaktiviert."
     else
         systemctl daemon-reload
         echo
-        echo "WARNUNG: lactd ist aktiv oder aktiviert. hwpanel wurde installiert, aber NICHT gestartet."
-        echo "Zum Umschalten (LACT bleibt installiert):  sudo ./install.sh --disable-lact"
+        say "WARNING: lactd is active or enabled. hwpanel was installed but NOT started." "WARNUNG: lactd ist aktiv oder aktiviert. hwpanel wurde installiert, aber NICHT gestartet."
+        say "To switch over (LACT stays installed):  sudo ./install.sh --disable-lact" "Zum Umschalten (LACT bleibt installiert):  sudo ./install.sh --disable-lact"
         exit 0
     fi
 fi
@@ -105,8 +147,11 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 echo
-echo "Installiert. GUI starten mit: hwpanel-gui"
+say "Installed. Start the GUI with: hwpanel-gui" "Installiert. GUI starten mit: hwpanel-gui"
 echo "Test:"
-"$BIN" status || { echo "Daemon antwortet nicht: journalctl -u hwpanel -e" >&2; exit 1; }
+if ! "$BIN" status; then
+    sayerr "Daemon is not responding: journalctl -u hwpanel -e" "Daemon antwortet nicht: journalctl -u hwpanel -e"
+    exit 1
+fi
 echo
-echo "Hinweis: Wenn power-profiles-daemon aktiv ist, kann es CPU-EPP/Governor ebenfalls ändern."
+say "Note: if power-profiles-daemon is active, it can also change the CPU EPP/governor." "Hinweis: Wenn power-profiles-daemon aktiv ist, kann es CPU-EPP/Governor ebenfalls ändern."

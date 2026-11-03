@@ -27,6 +27,12 @@ class TestServiceUnit(unittest.TestCase):
                            ("RestrictAddressFamilies", "AF_UNIX")):
             self.assertEqual(self.u.get(key), [value], key)
 
+    def test_description_is_english(self):
+        # erscheint in "systemctl status" für alle Nutzer und lässt sich nicht je Sprache übersetzen
+        text = " ".join(self.u.get("Description", []))
+        self.assertTrue(text)
+        self.assertIsNone(re.search(r"[äöüÄÖÜß]", text), text)
+
     def test_sysfs_stays_writable(self):
         # ProtectKernelTunables (auch mit 'read-only') würde /sys schreibgeschützt mounten
         self.assertNotIn("ProtectKernelTunables", self.u)

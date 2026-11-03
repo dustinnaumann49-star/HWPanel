@@ -10,7 +10,7 @@ Alle Obergrenzen sind die Treiber-Standardwerte, die beim ersten Start des Daemo
 - `gui/`: Fenster und Tray-Icon (PySide6/QML), gleiche Socket-Schnittstelle wie die CLI.
 - Socket: `/run/hwpanel/hwpanel.sock` (JSON pro Zeile), Daten: `/var/lib/hwpanel/`.
 
-Die GUI gibt es auf Deutsch und Englisch, sie folgt der Systemsprache. Die Ausgaben der Kommandozeile und die Meldungen des Daemons (Fehler, Ereignisse im Verlauf) sind noch nicht übersetzt und erscheinen auf Deutsch.
+GUI, Kommandozeile und Installationsskript gibt es auf Deutsch und Englisch, sie folgen der Systemsprache. Die Meldungen des Daemons (Fehler, Ereignisse im Verlauf) sind noch nicht übersetzt und erscheinen auf Deutsch.
 
 ## Voraussetzungen
 
@@ -50,7 +50,7 @@ hwpanel-gui --minimized               # nur Tray
 - Diagramme und Karten werden ohne Weichzeichner gezeichnet, versteckte Seiten zeichnen nicht mit. Das hält Start und Seitenwechsel flüssig.
 - Verlauf: Der Daemon hält die letzte Stunde im Speicher, auch wenn die GUI geschlossen ist. Gestrichelte Linien markieren Profilwechsel und manuelle Änderungen. Mit der Maus über ein Diagramm fahren zeigt die Werte.
 - Mit der Maus über eine Einstellung fahren (das "?" neben einer Beschriftung oder eine Option wie ein EPP-Wert) zeigt eine kurze Erklärung.
-- Sprache: Ein deutsches System zeigt Deutsch, alles andere Englisch. Die Knöpfe *Auto / DE / EN* unten in der Seitenleiste schalten sofort um; die Wahl wird in `~/.config/hwpanel/gui.json` gespeichert. Für die CLI gibt es `--lang KÜRZEL` oder `HWPANEL_LANG`.
+- Sprache: Ein deutsches System zeigt Deutsch, alles andere Englisch. Die Knöpfe *Auto / DE / EN* unten in der Seitenleiste schalten sofort um; die Wahl wird in `~/.config/hwpanel/gui.json` gespeichert. Kommandozeile und Installationsskript folgen ebenfalls der Systemsprache: `hwpanelctl --lang en …` oder die Umgebungsvariable `HWPANEL_LANG=de|en` überschreiben sie.
 - Tray: Linksklick öffnet/versteckt das Fenster, das Menü wechselt das Profil. Fenster schließen versteckt es nur, Beenden im Menü oder in der Seitenleiste beendet die GUI.
 - Autostart der GUI: Schalter "Beim Login starten" in der Seitenleiste (legt `~/.config/autostart/hwpanel-gui.desktop` an).
 - Ohne Tray-Unterstützung der Desktopumgebung (z. B. GNOME ohne AppIndicator-Erweiterung) beendet das Schließen des Fensters die GUI.

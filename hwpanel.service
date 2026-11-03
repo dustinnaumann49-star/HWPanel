@@ -1,5 +1,5 @@
 [Unit]
-Description=hwpanel Hardware-Daemon (GPU/CPU-Takt begrenzen, kein OC)
+Description=hwpanel hardware daemon (limits GPU/CPU clocks, no overclocking)
 After=multi-user.target
 
 [Service]

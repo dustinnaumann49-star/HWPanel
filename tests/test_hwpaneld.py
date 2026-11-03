@@ -19,6 +19,7 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import hwpaneld  # noqa: E402
 import hwpanelctl  # noqa: E402
+import hwpanel_i18n as i18n  # noqa: E402
 from hwpaneld import HW, parse_dmidecode, parse_od  # noqa: E402
 
 OD = "/sys/class/drm/card1/device/pp_od_clk_voltage"
@@ -999,8 +1000,14 @@ class TestSocketAndCli(Base):
         self.th.start()
         self._old = hwpanelctl.SOCKET_PATH
         hwpanelctl.SOCKET_PATH = self.path
+        # die Erwartungen dieser Tests sind deutsch: Sprache festnageln, unabhängig von der Umgebung
+        self._env = mock.patch.dict(os.environ, {"HWPANEL_LANG": "de"})
+        self._env.start()
+        i18n.set_language("de")
 
     def tearDown(self):
+        self._env.stop()
+        i18n.set_language("en")
         hwpanelctl.SOCKET_PATH = self._old
         self.srv.shutdown()
         self.srv.server_close()
