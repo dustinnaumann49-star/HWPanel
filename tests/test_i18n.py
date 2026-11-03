@@ -130,6 +130,95 @@ class TestLoadAndTranslate(Fixture):
         self.assertEqual(i18n.catalog()["Overview"], "Übersicht")
 
 
+class TestMessages(Fixture):
+    """Meldungen des Daemons: englische Vorlage plus Argumente; der Client stellt sie in seiner Sprache dar."""
+
+    def setUp(self):
+        super().setUp()
+        (self.dir / "de.json").write_text(json.dumps({
+            "_name": "Deutsch", "Value {key} is too high": "Wert {key} ist zu hoch",
+            "Manual: {what}": "Manuell: {what}", "GPU clock {value}": "GPU-Takt {value}",
+            "Default": "Standard", "Profile {name}": "Profil {name}", "Bad {x}": "Kaputt {y}"}, ensure_ascii=False),
+            encoding="utf-8")
+
+    def render_de(self, data):
+        i18n.set_language("de", self.dir)
+        return i18n.message(data)
+
+    def test_str_is_english_text(self):
+        self.assertEqual(str(i18n.Msg("Value {key} is too high", key="sclk")), "Value sclk is too high")
+        self.assertEqual(str(i18n.Msg("Plain text")), "Plain text")
+
+    def test_to_json_has_template_and_arguments(self):
+        m = i18n.Msg("Value {key} is too high", key="sclk")
+        self.assertEqual(m.to_json(), {"tpl": "Value {key} is too high", "args": {"key": "sclk"}})
+        json.dumps(m.to_json())   # muss sich übertragen lassen
+
+    def test_client_renders_in_its_language_and_falls_back_to_english(self):
+        data = i18n.Msg("Value {key} is too high", key="sclk").to_json()
+        self.assertEqual(self.render_de(data), "Wert sclk ist zu hoch")
+        i18n.set_language("en", self.dir)
+        self.assertEqual(i18n.message(data), "Value sclk is too high")
+        i18n.set_language("de", self.dir)
+        self.assertEqual(i18n.message(i18n.Msg("Not in catalog {n}", n=3).to_json()), "Not in catalog 3")
+
+    def test_nested_messages(self):
+        inner = i18n.Msg("GPU clock {value}", value=2300)
+        outer = i18n.Msg("Manual: {what}", what=inner)
+        self.assertEqual(str(outer), "Manual: GPU clock 2300")
+        self.assertEqual(self.render_de(outer.to_json()), "Manuell: GPU-Takt 2300")
+
+    def test_lists_are_joined_with_comma(self):
+        items = [i18n.Msg("GPU clock {value}", value=2300), i18n.Msg("GPU clock {value}", value=1000), "plain"]
+        outer = i18n.Msg("Manual: {what}", what=items)
+        self.assertEqual(str(outer), "Manual: GPU clock 2300, GPU clock 1000, plain")
+        self.assertEqual(self.render_de(outer.to_json()), "Manuell: GPU-Takt 2300, GPU-Takt 1000, plain")
+        self.assertEqual(str(i18n.Msg("Values {v}", v=["a", "b"])), "Values a, b")
+
+    def test_builtin_profile_name_is_translatable(self):
+        m = i18n.Msg("Profile {name}", name=i18n.Msg("Default"))
+        self.assertEqual(str(m), "Profile Default")
+        self.assertEqual(self.render_de(m.to_json()), "Profil Standard")
+        self.assertEqual(self.render_de(i18n.Msg("Profile {name}", name="KI").to_json()), "Profil KI")
+
+    def test_bad_translation_falls_back_to_english(self):
+        self.assertEqual(self.render_de(i18n.Msg("Bad {x}", x=1).to_json()), "Bad 1")
+
+    def test_message_accepts_plain_text_and_garbage(self):
+        self.assertEqual(i18n.message("just text"), "just text")
+        self.assertEqual(i18n.message(None), "")
+        self.assertEqual(i18n.message({"no": "template"}), "{'no': 'template'}")
+        self.assertEqual(i18n.message({"tpl": "Hello {x}"}), "Hello {x}")   # ohne Argumente bleibt es stehen
+
+    def test_user_text_is_never_used_as_format_string(self):
+        evil = "{0.__class__}{key}"
+        m = i18n.Msg("Value {key} is too high", key=evil)
+        self.assertEqual(str(m), f"Value {evil} is too high")
+        self.assertEqual(self.render_de(m.to_json()), f"Wert {evil} ist zu hoch")
+
+    def test_msg_error_is_a_value_error_with_english_text(self):
+        e = i18n.MsgError("Value {key} is too high", key="sclk")
+        self.assertIsInstance(e, ValueError)
+        self.assertEqual(str(e), "Value sclk is too high")
+        self.assertEqual(e.msg.to_json()["tpl"], "Value {key} is too high")
+
+    def test_field_helpers_prefer_structured_message(self):
+        resp = {"error": "Value sclk is too high",
+                "error_msg": i18n.Msg("Value {key} is too high", key="sclk").to_json(),
+                "errors": ["a", "b"], "errors_msg": [i18n.Msg("GPU clock {value}", value=1).to_json(),
+                                                      i18n.Msg("GPU clock {value}", value=2).to_json()]}
+        i18n.set_language("de", self.dir)
+        self.assertEqual(i18n.message_field(resp, "error"), "Wert sclk ist zu hoch")
+        self.assertEqual(i18n.message_list(resp, "errors"), ["GPU-Takt 1", "GPU-Takt 2"])
+        # alter Daemon ohne *_msg: der einfache Text
+        self.assertEqual(i18n.message_field({"error": "old text"}, "error"), "old text")
+        self.assertEqual(i18n.message_list({"errors": ["x", "y"]}, "errors"), ["x", "y"])
+        self.assertEqual(i18n.message_field({}, "error"), "")
+        self.assertEqual(i18n.message_list({}, "errors"), [])
+        # Längen passen nicht zusammen: lieber die einfachen Texte als eine falsche Zuordnung
+        self.assertEqual(i18n.message_list({"errors": ["x", "y"], "errors_msg": [resp["errors_msg"][0]]}, "errors"), ["x", "y"])
+
+
 def _tokens(text):
     """Platzhalter ({name}, %1) und HTML-Marken einer Meldung, sortiert."""
     return sorted(re.findall(r"\{[A-Za-z_0-9]*\}|%\d|</?[a-z]+>", text))
@@ -188,9 +277,12 @@ SAME_IN_GERMAN = {
     "GPU max %1 MHz", "VRAM max %1 MHz", "CPU max %1 MHz", "Power %1 W", "EPP %1", "Governor %1",
     "Max %1 MHz · ", "max %1 MHz", "max %1", "Limit %1 W", "VRAM %1 MHz", "Junction %1 · Mem %2", "LACT: %1",
     "CPU   {model}",
+    # Meldungen des Daemons, die auf Deutsch gleich lauten
+    "Turbo {value}", "EPP {value}", "Governor {value}", "Governor: {reason}", "EPP: {reason}", "Turbo: {reason}",
+    "{reason}", "{key} {value}",
 }
 QML_FILES = sorted((ROOT / "gui" / "qml").glob("*.qml")) + [ROOT / "gui" / "qml" / "Fmt.js"]
-PY_FILES = sorted((ROOT / "gui").glob("*.py")) + [ROOT / "hwpanelctl.py"]   # der Daemon folgt in einem späteren Schritt
+PY_FILES = sorted((ROOT / "gui").glob("*.py")) + [ROOT / "hwpanelctl.py", ROOT / "hwpaneld.py"]
 QSTR = re.compile(r'\bqsTr\(\s*"((?:[^"\\]|\\.)*)"')
 
 
@@ -208,14 +300,15 @@ def _tr_calls(tree):
         if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) \
                 and isinstance(node.args[0].value, str):
             fn = node.func
-            if (isinstance(fn, ast.Name) and fn.id == "tr") or (isinstance(fn, ast.Attribute) and fn.attr == "tr"):
+            name = fn.id if isinstance(fn, ast.Name) else fn.attr if isinstance(fn, ast.Attribute) else None
+            if name in ("tr", "Msg", "MsgError"):   # Msg/MsgError: Meldungen des Daemons
                 yield node.args[0]
 
 
 def python_texts(files=None):
     """Alle Quelltexte von tr(...) in Python-Dateien: Text -> Dateien."""
     out = {}
-    for f in files or PY_FILES + [ROOT / "hwpaneld.py"]:
+    for f in files or PY_FILES:
         for arg in _tr_calls(ast.parse(f.read_text(encoding="utf-8"))):
             out.setdefault(arg.value, []).append(f.name)
     return out

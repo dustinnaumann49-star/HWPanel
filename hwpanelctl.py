@@ -63,6 +63,12 @@ def parse_curve(text):
 LABEL_WIDTH = 15   # Breite der Beschriftungsspalte in der Statusausgabe
 
 
+def fan_mode_text(code):
+    """Lüfterzustand der Hardware (neutrale Kennung vom Daemon) in der Sprache der Ausgabe."""
+    names = {"manual": tr("manual"), "automatic": tr("automatic"), "off": tr("off")}
+    return names.get(code, code) if code else "-"
+
+
 def print_settings(st):
     g, c = st.get("gpu") or {}, st.get("cpu") or {}
     turbo = {True: tr("on"), False: tr("off"), None: "-"}[c.get("turbo")]
@@ -103,11 +109,11 @@ def print_status(s):
     if f.get("mode") == "curve":
         line = tr("Fan control  sensor {sensor} {temp} °C -> target {target} %, set {applied} %, mode {mode}",
                   sensor=f["sensor"], temp=v(f["temp_c"]), target=v(f["target_pct"]),
-                  applied=v(f["applied_pct"]), mode=v(f["hw_mode"]))
+                  applied=v(f["applied_pct"]), mode=fan_mode_text(f.get("hw_mode")))
         if f.get("override"):
             line += "   " + tr("SAFETY ACTIVE (100 %)")
         if f.get("error"):
-            line += "   " + tr("Error: {error}", error=f["error"])
+            line += "   " + tr("Error: {error}", error=i18n.message_field(f, "error"))
         print(line)
     print(tr("Profile").ljust(LABEL_WIDTH) + (s.get("active_profile") or tr("manual / unknown")))
 
@@ -151,13 +157,14 @@ def print_info(i):
 
 def show_result(r):
     if "error" in r:
-        print(tr("Error:"), r["error"])
+        print(tr("Error:"), i18n.message_field(r, "error"))
         return 1
-    for n in r.get("notes", []):
+    for n in i18n.message_list(r, "notes"):
         print(tr("Note:"), n)
-    for e in r.get("errors", []):
+    errors = i18n.message_list(r, "errors")
+    for e in errors:
         print(tr("Error:"), e)
-    if r.get("errors"):
+    if errors:
         return 1
     if "settings" in r:
         print("OK")

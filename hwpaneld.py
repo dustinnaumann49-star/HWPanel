@@ -23,6 +23,8 @@ import threading
 import time
 import traceback
 
+from hwpanel_i18n import Msg, MsgError
+
 VERSION = "0.1.0"
 DATA_DIR = "/var/lib/hwpanel"
 SOCKET_PATH = "/run/hwpanel/hwpanel.sock"
@@ -115,11 +117,12 @@ def fan_curve_value(curve, t):
 
 
 def describe_fan(cfg):
+    """Beschreibung der Lüfterkonfiguration als Meldung (für Ereignisse)."""
     if not cfg:
-        return "Lüfter Automatik"
+        return Msg("Fan automatic")
     c = cfg["curve"]
-    return (f"Lüfterkurve {cfg['sensor']} {c[0][0]}-{c[-1][0]} °C, "
-            f"{min(p for _, p in c)}-{max(p for _, p in c)} %")
+    return Msg("Fan curve {sensor} {tmin}-{tmax} °C, {pmin}-{pmax} %", sensor=cfg["sensor"],
+               tmin=c[0][0], tmax=c[-1][0], pmin=min(p for _, p in c), pmax=max(p for _, p in c))
 
 
 # ---------------------------------------------------------------- Parser
@@ -289,7 +292,7 @@ class HW:
         except FileNotFoundError:
             return default
         except (OSError, ValueError) as e:
-            log(f"{name} nicht lesbar ({e}), verwende Standard")
+            log(f"{name} not readable ({e}), using the default")
             return default
 
     def _save_json(self, name, obj):
@@ -320,9 +323,9 @@ class HW:
 
     def _write(self, path, value):
         if self.readonly:
-            raise PermissionError("Nur-Lese-Modus")
+            raise PermissionError("read-only mode")
         if not write_allowed(path):
-            raise PermissionError(f"Schreibzugriff nicht erlaubt: {path!r}")
+            raise PermissionError(f"write access not allowed: {path!r}")
         self.io.write(path, value)
 
     # ---- Erkennung
@@ -394,7 +397,7 @@ class HW:
                     self._write(g.od, "c\n")
                     src = "od-reset"
                 except OSError as e:
-                    log(f"OD-Reset beim Erfassen der Standardwerte fehlgeschlagen: {_fmt(e)}")
+                    log(f"OD reset failed while capturing the defaults: {_fmt(e)}")
             od = parse_od(self._read(g.od) or "")
             cap = None
             for n in ("power1_cap_default", "power1_cap_max", "power1_cap"):
@@ -425,13 +428,13 @@ class HW:
                 try:
                     fan = self._validate_fan(s.get("fan"), check_hw=False)
                 except ValueError as e:
-                    log(f"Profil '{name}': Lüfter ungültig ({e}), ignoriert")
+                    log(f"Profile '{name}': invalid fan configuration ({e}), ignored")
                     continue
                 clean[name] = {"gpu": dict(s.get("gpu") or {}), "cpu": dict(s.get("cpu") or {})}
                 if fan:
                     clean[name]["fan"] = fan
             else:
-                log(f"Profil '{name}' ungültig, ignoriert")
+                log(f"Profile '{name}' invalid, ignored")
         return clean
 
     # ---- Grenzen / Validierung
@@ -467,41 +470,41 @@ class HW:
     @staticmethod
     def _as_int(val, key):
         if isinstance(val, bool):
-            raise ValueError(f"{key}: Zahl erwartet")
+            raise MsgError("{key}: number expected", key=key)
         if isinstance(val, float) and val.is_integer():
             val = int(val)
         if not isinstance(val, int):
-            raise ValueError(f"{key}: Ganzzahl erwartet")
+            raise MsgError("{key}: integer expected", key=key)
         return val
 
     def _validate_gpu(self, v):
         if not isinstance(v, dict):
-            raise ValueError("gpu: Objekt erwartet")
+            raise MsgError("gpu: object expected")
         bad = set(v) - set(GPU_KEYS)
         if bad:
-            raise ValueError(f"gpu: unbekannte Werte {sorted(bad)}")
+            raise MsgError("gpu: unknown values {values}", values=sorted(bad))
         if v and not self.gpu:
-            raise ValueError("Keine AMD-GPU gefunden")
+            raise MsgError("No AMD GPU found")
         L = self.limits()["gpu"]
         out = {}
         for k, val in v.items():
             n = self._as_int(val, k)
             lim = L.get(k)
             if not lim:
-                raise ValueError(f"{k}: nicht unterstützt oder Grenzen (OD_RANGE) nicht lesbar")
+                raise MsgError("{key}: not supported or limits (OD_RANGE) not readable", key=k)
             if not lim[0] <= n <= lim[1]:
-                raise ValueError(f"{k}={n} außerhalb des erlaubten Bereichs {lim[0]}-{lim[1]}")
+                raise MsgError("{key}={value} is outside the allowed range {lo}-{hi}", key=k, value=n, lo=lim[0], hi=lim[1])
             out[k] = n
         return out
 
     def _validate_cpu(self, v):
         if not isinstance(v, dict):
-            raise ValueError("cpu: Objekt erwartet")
+            raise MsgError("cpu: object expected")
         bad = set(v) - set(CPU_KEYS)
         if bad:
-            raise ValueError(f"cpu: unbekannte Werte {sorted(bad)}")
+            raise MsgError("cpu: unknown values {values}", values=sorted(bad))
         if v and not self.cpu_dirs:
-            raise ValueError("Keine cpufreq-Schnittstelle gefunden")
+            raise MsgError("No cpufreq interface found")
         L = self.limits()["cpu"]
         out = {}
         for k, val in v.items():
@@ -509,21 +512,22 @@ class HW:
                 n = self._as_int(val, k)
                 lim = L.get(k)
                 if not lim:
-                    raise ValueError("max_mhz: nicht unterstützt")
+                    raise MsgError("{key}: not supported", key=k)
                 if not lim[0] <= n <= lim[1]:
-                    raise ValueError(f"max_mhz={n} außerhalb des erlaubten Bereichs {lim[0]}-{lim[1]}")
+                    raise MsgError("{key}={value} is outside the allowed range {lo}-{hi}", key=k, value=n, lo=lim[0], hi=lim[1])
                 out[k] = n
             elif k == "turbo":
                 if not isinstance(val, bool):
-                    raise ValueError("turbo: true/false erwartet")
+                    raise MsgError("turbo: true/false expected")
                 if not self._turbo_path():
-                    raise ValueError("turbo: nicht unterstützt")
+                    raise MsgError("{key}: not supported", key=k)
                 out[k] = val
             else:
                 opts = self._options("scaling_available_governors" if k == "governor"
                                      else "energy_performance_available_preferences")
                 if val not in opts:
-                    raise ValueError(f"{k}='{val}' ungültig, erlaubt: {', '.join(opts) or 'nichts'}")
+                    raise MsgError("{key}='{value}' is invalid, allowed: {allowed}", key=k, value=val,
+                                   allowed=opts or Msg("nothing"))
                 out[k] = val
         return out
 
@@ -536,49 +540,51 @@ class HW:
         if v is None or v == {}:
             return None
         if not isinstance(v, dict):
-            raise ValueError("fan: Objekt erwartet")
+            raise MsgError("fan: object expected")
         bad = set(v) - {"mode", "sensor", "curve"}
         if bad:
-            raise ValueError(f"fan: unbekannte Werte {sorted(bad)}")
+            raise MsgError("fan: unknown values {values}", values=sorted(bad))
         mode = v.get("mode", "curve")
         if mode not in ("auto", "curve"):
-            raise ValueError("fan.mode muss 'auto' oder 'curve' sein")
+            raise MsgError("fan.mode must be 'auto' or 'curve'")
         if mode == "auto":
             return None
         if check_hw and not self.fan_supported():
-            raise ValueError("Lüftersteuerung nicht unterstützt (pwm1/pwm1_enable fehlen)")
+            raise MsgError("Fan control not supported (pwm1/pwm1_enable missing)")
         sensor = v.get("sensor", "edge")
         if sensor not in FAN_SENSORS:
-            raise ValueError(f"fan.sensor muss einer von {', '.join(FAN_SENSORS)} sein")
+            raise MsgError("fan.sensor must be one of {sensors}", sensors=list(FAN_SENSORS))
         raw = v.get("curve")
         if not isinstance(raw, (list, tuple)) or not FAN_POINTS[0] <= len(raw) <= FAN_POINTS[1]:
-            raise ValueError(f"fan.curve: {FAN_POINTS[0]}-{FAN_POINTS[1]} Punkte [°C, %] erwartet")
+            raise MsgError("fan.curve: {lo}-{hi} points [°C, %] expected", lo=FAN_POINTS[0], hi=FAN_POINTS[1])
         curve = []
         for pt in raw:
             if not isinstance(pt, (list, tuple)) or len(pt) != 2:
-                raise ValueError("fan.curve: Punkte müssen [°C, %] sein")
-            t, p = self._as_int(pt[0], "fan.curve Temperatur"), self._as_int(pt[1], "fan.curve Prozent")
+                raise MsgError("fan.curve: points must be [°C, %]")
+            t = self._as_int(pt[0], Msg("fan.curve temperature"))
+            p = self._as_int(pt[1], Msg("fan.curve percent"))
             if not FAN_TEMP_RANGE[0] <= t <= FAN_TEMP_RANGE[1]:
-                raise ValueError(f"fan.curve: Temperatur {t} außerhalb {FAN_TEMP_RANGE[0]}-{FAN_TEMP_RANGE[1]} °C")
+                raise MsgError("fan.curve: temperature {temp} outside {lo}-{hi} °C", temp=t,
+                               lo=FAN_TEMP_RANGE[0], hi=FAN_TEMP_RANGE[1])
             if not 0 <= p <= 100:
-                raise ValueError(f"fan.curve: {p} % außerhalb 0-100")
+                raise MsgError("fan.curve: {percent} % outside 0-100", percent=p)
             curve.append([t, p])
         for (t0, p0), (t1, p1) in zip(curve, curve[1:]):
             if t1 <= t0:
-                raise ValueError("fan.curve: Temperaturen müssen streng aufsteigend sein")
+                raise MsgError("fan.curve: temperatures must be strictly ascending")
             if p1 < p0:
-                raise ValueError("fan.curve: Prozentwerte dürfen mit steigender Temperatur nicht sinken")
+                raise MsgError("fan.curve: percentages must not decrease with rising temperature")
         for rt, rp in self.fan_rules:
             if fan_curve_value(curve, rt) < rp:
-                raise ValueError(f"fan.curve: bei {rt:g} °C sind mindestens {rp:g} % nötig "
-                                 f"(Schutzregel, einstellbar in config.json)")
+                raise MsgError("fan.curve: at least {percent} % required at {temp} °C "
+                               "(protection rule, adjustable in config.json)", percent=f"{rp:g}", temp=f"{rt:g}")
         return {"sensor": sensor, "curve": curve}
 
     def validate_settings(self, s):
         if not isinstance(s, dict):
-            raise ValueError("Einstellungen müssen ein Objekt sein")
+            raise MsgError("Settings must be an object")
         if set(s) - {"gpu", "cpu", "fan"}:
-            raise ValueError(f"Unbekannte Bereiche: {sorted(set(s) - {'gpu', 'cpu', 'fan'})}")
+            raise MsgError("Unknown sections: {values}", values=sorted(set(s) - {"gpu", "cpu", "fan"}))
         out = {"gpu": self._validate_gpu(s.get("gpu") or {}),
                "cpu": self._validate_cpu(s.get("cpu") or {})}
         fan = self._validate_fan(s.get("fan"))
@@ -605,7 +611,7 @@ class HW:
                 try:
                     self._write(g.od, c + "\n")
                 except OSError as e:
-                    errs.append(f"GPU-Takt: Befehl '{c}' abgelehnt ({_fmt(e)})")
+                    errs.append(Msg("GPU clock: command '{command}' rejected ({reason})", command=c, reason=_fmt(e)))
                     break
             else:
                 od = parse_od(self._read(g.od) or "")
@@ -619,11 +625,11 @@ class HW:
                     if got is not None and abs(got - want) <= max(10, want * 0.01):
                         continue
                     if asked or got is None:
-                        errs.append(f"{key}: erwartet {want}, Treiber meldet {got}")
+                        errs.append(Msg("{key}: expected {expected}, driver reports {actual}", key=key, expected=want, actual=got))
                     else:
                         # nur zurückgesetzt, nichts verlangt: der Treiberstandard gilt, auch wenn er vom
                         # gespeicherten Wert abweicht (z. B. nach Treiber-/Kernel-Update)
-                        log(f"Hinweis: {key} nach Reset {got}, gespeicherter Standard {want}")
+                        log(f"Note: {key} after reset is {got}, stored default is {want}")
         if "power_cap_w" in v:
             want = v["power_cap_w"] * 1_000_000
         else:
@@ -634,10 +640,10 @@ class HW:
                 self._write(p, f"{int(want)}\n")
                 got = self._num(p)
                 if got is not None and abs(int(got) - int(want)) > 1_000_000:   # 1 W Toleranz
-                    errs.append(f"power_cap_w: erwartet {int(want) // 1_000_000}, "
-                                f"Treiber meldet {int(got) // 1_000_000}")
+                    errs.append(Msg("{key}: expected {expected}, driver reports {actual}", key="power_cap_w",
+                                    expected=int(want) // 1_000_000, actual=int(got) // 1_000_000))
             except OSError as e:
-                errs.append(f"Power-Limit: {_fmt(e)}")
+                errs.append(Msg("Power limit: {reason}", reason=_fmt(e)))
         return errs
 
     def _apply_cpu(self, v, reset):
@@ -664,19 +670,19 @@ class HW:
         if "governor" in full:
             e = each("scaling_governor", full["governor"] + "\n")
             if e:
-                errs.append(f"Governor: {e}")
+                errs.append(Msg("Governor: {reason}", reason=e))
         if "epp" in full:
             if self._read(self.cpu_dirs[0] + "/scaling_governor") == "performance":
                 epp_skipped = True
-                notes.append("EPP übersprungen: Governor 'performance' ignoriert EPP")
+                notes.append(Msg("EPP skipped: governor 'performance' ignores EPP"))
             else:
                 e = each("energy_performance_preference", full["epp"] + "\n")
                 if e:
-                    errs.append(f"EPP: {e}")
+                    errs.append(Msg("EPP: {reason}", reason=e))
         if "max_mhz" in full:
             e = each("scaling_max_freq", f"{full['max_mhz'] * 1000}\n")
             if e:
-                errs.append(f"Max-Takt: {e}")
+                errs.append(Msg("Max clock: {reason}", reason=e))
         if "turbo" in full:
             tp = self._turbo_path()
             if tp:
@@ -685,18 +691,22 @@ class HW:
                 try:
                     self._write(path, ("0" if on else "1") if inverted else ("1" if on else "0"))
                 except OSError as e:
-                    errs.append(f"Turbo: {_fmt(e)}")
+                    errs.append(Msg("Turbo: {reason}", reason=_fmt(e)))
 
         snap = self.cpu_settings()
         if "max_mhz" in full and snap.get("max_mhz") is not None \
                 and abs(snap["max_mhz"] - full["max_mhz"]) > 100:
-            errs.append(f"max_mhz: erwartet {full['max_mhz']}, System meldet {snap['max_mhz']}")
+            errs.append(Msg("{key}: expected {expected}, system reports {actual}", key="max_mhz",
+                            expected=full["max_mhz"], actual=snap["max_mhz"]))
         if "governor" in full and snap.get("governor") != full["governor"] and not errs:
-            errs.append(f"governor: erwartet {full['governor']}, System meldet {snap.get('governor')}")
+            errs.append(Msg("{key}: expected {expected}, system reports {actual}", key="governor",
+                            expected=full["governor"], actual=snap.get("governor")))
         if "epp" in full and not epp_skipped and snap.get("epp") != full["epp"] and not errs:
-            errs.append(f"epp: erwartet {full['epp']}, System meldet {snap.get('epp')}")
+            errs.append(Msg("{key}: expected {expected}, system reports {actual}", key="epp",
+                            expected=full["epp"], actual=snap.get("epp")))
         if "turbo" in full and snap.get("turbo") is not None and snap["turbo"] != full["turbo"]:
-            errs.append(f"turbo: erwartet {full['turbo']}, System meldet {snap['turbo']}")
+            errs.append(Msg("{key}: expected {expected}, system reports {actual}", key="turbo",
+                            expected=full["turbo"], actual=snap["turbo"]))
         return errs, notes
 
     def _apply_all(self, settings, reset):
@@ -706,9 +716,9 @@ class HW:
 
     # ---- Lüfterregelung
 
-    def _fan_event(self, text):
-        self._event(text)
-        log(text)
+    def _fan_event(self, msg):
+        self._event(msg)
+        log(str(msg))
 
     def _fan_release(self, why=None):
         """Gibt den Lüfter an die Treiber-Automatik zurück (pwm1_enable = 2)."""
@@ -717,7 +727,7 @@ class HW:
             try:
                 self._write(g.hw("pwm1_enable"), "2\n")
             except OSError as e:
-                log(f"Lüfter: Rückgabe an Automatik fehlgeschlagen ({_fmt(e)})")
+                log(f"Fan: returning control to automatic failed ({_fmt(e)})")
         st["manual"] = False
         st["pct"] = None
         st["lower_since"] = None
@@ -732,7 +742,7 @@ class HW:
         if not st["manual"] or self._read(en) != "1":
             self._write(en, "1\n")
             if self._read(en) != "1":
-                raise OSError(errno.EIO, "pwm1_enable lässt sich nicht auf manuell stellen")
+                raise OSError(errno.EIO, "pwm1_enable cannot be set to manual")
             st["manual"] = True
         self._write(g.hw("pwm1"), f"{value}\n")
         # amdgpu rechnet intern über ganze Prozent und liest teils den aktuellen Wert statt des
@@ -740,7 +750,7 @@ class HW:
         got = self._num(g.hw("pwm1"))
         if got is not None and abs(got - value) > mx * 0.12 and not st.get("diff_logged"):
             st["diff_logged"] = True
-            log(f"Lüfter: pwm1 gesetzt {value}, Treiber meldet {int(got)} (Rundung oder Anlauframpe, wird ignoriert)")
+            log(f"Fan: pwm1 set to {value}, driver reports {int(got)} (rounding or ramp-up, ignored)")
         st["pct"] = pct
 
     def fan_step(self, now=None):
@@ -764,9 +774,9 @@ class HW:
             st["temp"] = temp
             if temp is None:
                 st["target"] = None
-                if st["error"] != "Sensor nicht lesbar":
-                    st["error"] = "Sensor nicht lesbar"
-                    self._fan_release(f"Lüfter: {cfg['sensor']}-Sensor nicht lesbar, Automatik")
+                if not (st["error"] and st["error"].tpl == "sensor not readable"):
+                    st["error"] = Msg("sensor not readable")
+                    self._fan_release(Msg("Fan: {sensor} sensor not readable, automatic", sensor=cfg["sensor"]))
                 else:
                     self._fan_release()
                 return
@@ -774,10 +784,10 @@ class HW:
             if junc is not None:
                 if junc >= self.fan_safety_c and not st["override"]:
                     st["override"] = True
-                    self._fan_event(f"Lüfter: Sicherung aktiv (Junction {junc:.0f} °C), 100 %")
+                    self._fan_event(Msg("Fan: safety active (junction {temp} °C), 100 %", temp=f"{junc:.0f}"))
                 elif st["override"] and junc < self.fan_safety_c - FAN_SAFETY_RELEASE:
                     st["override"] = False
-                    self._fan_event("Lüfter: Sicherung beendet")
+                    self._fan_event(Msg("Fan: safety ended"))
             target = 100 if st["override"] else round(fan_curve_value(cfg["curve"], temp))
             st["target"] = target
             cur = st["pct"]
@@ -804,12 +814,12 @@ class HW:
                     st["error"] = None
                     st["logged"] = None
                 except OSError as e:
-                    msg = f"Lüfter: {_fmt(e)}"
-                    st["error"] = _fmt(e)
+                    reason = _fmt(e)
+                    st["error"] = Msg("{reason}", reason=reason)
                     st["retry_at"] = now + 10.0
-                    if st["logged"] != msg:
-                        st["logged"] = msg
-                        self._fan_release(msg + ", Automatik")
+                    if st["logged"] != reason:
+                        st["logged"] = reason
+                        self._fan_release(Msg("Fan: {reason}, automatic", reason=reason))
                     else:
                         self._fan_release()
 
@@ -827,16 +837,16 @@ class HW:
                 self.fan_step()
                 return []
             if self.readonly:
-                return ["Lüfter: Nur-Lese-Modus"]
+                return [Msg("Fan: read-only mode")]
             self.fan_step()
-            return [f"Lüfter: {st['error']}"] if st["error"] else []
+            return [Msg("Fan: {error}", error=st["error"])] if st["error"] else []
 
     def fan_shutdown(self):
         """Beim Beenden des Daemons: Lüfter zurück auf Automatik."""
         with self._fan_lock:
             self._fan["cfg"] = None
             if self._fan["manual"]:
-                self._fan_release("Lüfter: Daemon beendet, Automatik")
+                self._fan_release(Msg("Fan: daemon stopped, automatic"))
 
     def fan_status(self):
         st, g = self._fan, self.gpu
@@ -844,14 +854,16 @@ class HW:
         hw_mode = None
         if g:
             en = self._read(g.hw("pwm1_enable"))
-            hw_mode = {"1": "manuell", "2": "automatik", "0": "aus"}.get(en)
+            hw_mode = {"1": "manual", "2": "automatic", "0": "off"}.get(en)   # neutrale Kennungen, die Clients übersetzen
+        err = st["error"]
         return {"supported": self.fan_supported(),
                 "mode": "curve" if cfg else "auto",
                 "sensor": cfg["sensor"] if cfg else None,
                 "curve": cfg["curve"] if cfg else None,
                 "temp_c": _rnd(st["temp"]), "target_pct": st["target"],
                 "applied_pct": st["pct"], "override": st["override"],
-                "error": st["error"], "hw_mode": hw_mode}
+                "error": str(err) if err else None, "error_msg": err.to_json() if err else None,
+                "hw_mode": hw_mode}
 
     def run_fan(self):
         while not self._stop.is_set():
@@ -909,28 +921,42 @@ class HW:
 
     def _result(self, errs, notes):
         for e in errs:
-            log(f"Fehler: {e}")
-        return {"ok": not errs, "errors": errs, "notes": notes,
+            log(f"Error: {e}")
+        return {"ok": not errs,
+                "errors": [str(e) for e in errs], "errors_msg": [e.to_json() for e in errs],
+                "notes": [str(n) for n in notes], "notes_msg": [n.to_json() for n in notes],
                 "settings": self.settings_snapshot(), "active_profile": self._detect_profile(),
                 "fan": self.fan_status()}
 
-    LABELS = {"sclk_max": "GPU-Takt", "mclk_max": "VRAM-Takt", "power_cap_w": "Power-Limit",
-              "max_mhz": "CPU-Takt", "turbo": "Turbo", "epp": "EPP", "governor": "Governor"}
+    @staticmethod
+    def _setting_msg(key, value):
+        """Eine Einstellung als Meldung für Ereignisse (jede Vorlage ist ein eigener Katalogeintrag)."""
+        return {"sclk_max": lambda: Msg("GPU clock {value}", value=value),
+                "mclk_max": lambda: Msg("VRAM clock {value}", value=value),
+                "power_cap_w": lambda: Msg("Power limit {value}", value=value),
+                "max_mhz": lambda: Msg("CPU clock {value}", value=value),
+                "turbo": lambda: Msg("Turbo {value}", value=value),
+                "epp": lambda: Msg("EPP {value}", value=value),
+                "governor": lambda: Msg("Governor {value}", value=value)}.get(
+                    key, lambda: Msg("{key} {value}", key=key, value=value))()
 
     @staticmethod
-    def _fail(errs):
-        """Anhang für Ereignistexte: erste Fehlermeldung, gekürzt."""
-        if not errs:
-            return ""
-        t = errs[0]
-        return f" (Fehler: {t[:55] + '…' if len(t) > 56 else t})"
+    def _with_failure(msg, errs):
+        """Ereignis mit dem Anhang der ersten Fehlermeldung."""
+        return Msg("{event} (error: {error})", event=msg, error=errs[0]) if errs else msg
 
-    def _event(self, text):
+    def _event(self, msg):
+        """Ereignis für den Verlauf: einfacher englischer Text und die Meldung für übersetzende Clients."""
         with self._hist_lock:
-            self._events.append({"t": round(time.time(), 1), "text": text})
+            self._events.append({"t": round(time.time(), 1), "text": str(msg), "msg": msg.to_json()})
+
+    @staticmethod
+    def _profile_msg(name):
+        """Das eingebaute Profil heißt für Menschen "Default"/"Standard", intern aber BUILTIN."""
+        return Msg("Profile {name}", name=Msg("Default") if name == BUILTIN else name)
 
     def _describe(self, v):
-        return ", ".join(f"{self.LABELS.get(k, k)} {x}" for k, x in v.items())
+        return Msg("Manual: {what}", what=[self._setting_msg(k, x) for k, x in v.items()])
 
     def set_gpu(self, values):
         with self.lock:
@@ -939,7 +965,7 @@ class HW:
             if not errs:
                 self.desired["gpu"].update(v)
             if v:
-                self._event("Manuell: " + self._describe(v) + self._fail(errs))
+                self._event(self._with_failure(self._describe(v), errs))
             return self._result(errs, [])
 
     def set_cpu(self, values):
@@ -949,7 +975,7 @@ class HW:
             if not errs:
                 self.desired["cpu"].update(v)
             if v:
-                self._event("Manuell: " + self._describe(v) + self._fail(errs))
+                self._event(self._with_failure(self._describe(v), errs))
             return self._result(errs, notes)
 
     def set_fan(self, values):
@@ -957,12 +983,12 @@ class HW:
             v = self._validate_fan(values)
             errs = self._fan_apply(v)
             self.desired["fan"] = v   # bei Fehler bleibt der Lüfter auf Automatik und der Daemon versucht es erneut
-            self._event("Manuell: " + describe_fan(v) + self._fail(errs))
+            self._event(self._with_failure(Msg("Manual: {what}", what=describe_fan(v)), errs))
             return self._result(errs, [])
 
     def reset(self, target="all"):
         if target not in ("gpu", "cpu", "fan", "all"):
-            raise ValueError("target muss gpu, cpu, fan oder all sein")
+            raise MsgError("target must be gpu, cpu, fan or all")
         with self.lock:
             errs, notes = [], []
             if target in ("gpu", "all"):
@@ -975,8 +1001,8 @@ class HW:
             if target in ("fan", "all"):
                 errs += self._fan_apply(None)
                 self.desired["fan"] = None
-            self._event("Zurückgesetzt" + ("" if target == "all" else f" ({target.upper()})")
-                        + self._fail(errs))
+            base = Msg("Reset") if target == "all" else Msg("Reset ({target})", target=target.upper())
+            self._event(self._with_failure(base, errs))
             return self._result(errs, notes)
 
     def apply_profile(self, name):
@@ -986,12 +1012,12 @@ class HW:
             elif name in self.profiles:
                 settings = self.validate_settings(self.profiles[name])
             else:
-                raise ValueError(f"Profil '{name}' existiert nicht")
+                raise MsgError("Profile '{name}' does not exist", name=name)
             errs, notes = self._apply_all(settings, reset=True)
             errs += self._fan_apply(settings.get("fan"))
             settings.setdefault("fan", None)
             self.desired = settings
-            self._event(f"Profil {name}" + self._fail(errs))
+            self._event(self._with_failure(self._profile_msg(name), errs))
             return self._result(errs, notes)
 
     def reapply(self):
@@ -1000,7 +1026,7 @@ class HW:
                 return None
             errs, _ = self._apply_all(self.desired, reset=True)
             for e in errs:
-                log(f"Wiederanwenden: {e}")
+                log(f"Reapply: {e}")
             return errs
 
     # ---- Profile verwalten
@@ -1008,9 +1034,9 @@ class HW:
     @staticmethod
     def _check_name(name):
         if not isinstance(name, str) or not re.fullmatch(r"\w[\w .\-]{0,31}", name):
-            raise ValueError("Profilname: 1-32 Zeichen (Buchstaben, Ziffern, Leerzeichen, . _ -)")
+            raise MsgError("Profile name: 1-32 characters (letters, digits, spaces, . _ -)")
         if name.lower() == BUILTIN.lower():
-            raise ValueError(f"'{BUILTIN}' ist reserviert")
+            raise MsgError("'{name}' is reserved", name=BUILTIN)
 
     def save_profile(self, name, settings):
         self._check_name(name)
@@ -1022,7 +1048,7 @@ class HW:
     def delete_profile(self, name):
         with self.lock:
             if name not in self.profiles:
-                raise ValueError(f"Profil '{name}' existiert nicht")
+                raise MsgError("Profile '{name}' does not exist", name=name)
             del self.profiles[name]
             self._save_json("profiles.json", self.profiles)
             if self.cfg.get("autostart_profile") == name:
@@ -1033,7 +1059,7 @@ class HW:
     def set_autostart(self, name):
         with self.lock:
             if name is not None and name != BUILTIN and name not in self.profiles:
-                raise ValueError(f"Profil '{name}' existiert nicht")
+                raise MsgError("Profile '{name}' does not exist", name=name)
             self.cfg["autostart_profile"] = None if name == BUILTIN else name
             self._save_json("config.json", self.cfg)
         return {"ok": True, "autostart_profile": self.cfg["autostart_profile"]}
@@ -1227,8 +1253,8 @@ class HW:
         resumed = off - self._susp > 3.0
         self._susp = off
         if resumed:
-            log("Resume erkannt, wende Einstellungen erneut an")
-            self._event("Aufwachen aus Standby")
+            log("Resume detected, applying the settings again")
+            self._event(Msg("Woke up from standby"))
             time.sleep(self.resume_delay)
             self.reapply()
 
@@ -1245,12 +1271,15 @@ class HW:
 
     def history(self, since=None):
         if since is not None and (isinstance(since, bool) or not isinstance(since, (int, float))):
-            raise ValueError("since: Zahl (Unix-Zeit) erwartet")
+            raise MsgError("since: number (Unix time) expected")
         with self._hist_lock:
             samples, events = list(self._hist), list(self._events)
         if since is not None:
             samples = [s for s in samples if s["t"] > since]
-            events = [e for e in events if e["t"] > since]
+            # Ereignisse inklusive: Der Client fragt mit dem Zeitstempel der letzten Probe, Zeitstempel sind auf 0,1 s
+            # gerundet. Ein Ereignis nach dieser Probe kann denselben Wert haben und ginge mit ">" verloren.
+            # Doppelte erkennt der Client am Paar (Zeit, Text).
+            events = [e for e in events if e["t"] >= since]
         return {"ok": True, "now": round(time.time(), 1), "interval_s": 1,
                 "retention_s": self.history_seconds, "samples": samples, "events": events}
 
@@ -1289,10 +1318,19 @@ class HW:
             return self.delete_profile(req.get("name"))
         if cmd == "set_autostart":
             return self.set_autostart(req.get("profile"))
-        raise ValueError(f"Unbekanntes Kommando: {cmd!r}")
+        raise MsgError("Unknown command: {command}", command=repr(cmd))
 
 
 # --------------------------------------------------------------- Server
+
+def error_response(e):
+    """Antwort auf einen fehlgeschlagenen Befehl: einfacher englischer Text; wo es eine Meldung gibt, auch deren Vorlage."""
+    msg = e.msg if isinstance(e, MsgError) else None if isinstance(e, ValueError) else Msg("Internal error: {error}", error=str(e))
+    resp = {"ok": False, "error": str(msg) if msg else str(e)}
+    if msg:
+        resp["error_msg"] = msg.to_json()
+    return resp
+
 
 class Handler(socketserver.StreamRequestHandler):
     timeout = 60
@@ -1309,13 +1347,13 @@ class Handler(socketserver.StreamRequestHandler):
             try:
                 req = json.loads(line)
                 if not isinstance(req, dict):
-                    raise ValueError("JSON-Objekt erwartet")
+                    raise MsgError("JSON object expected")
                 resp = hw.handle(req)
-            except ValueError as e:
-                resp = {"ok": False, "error": str(e)}
+            except ValueError as e:   # auch MsgError und ein ungültiges JSON
+                resp = error_response(e)
             except Exception as e:
                 log(traceback.format_exc())
-                resp = {"ok": False, "error": f"Interner Fehler: {e}"}
+                resp = error_response(e)
             try:
                 self.wfile.write((json.dumps(resp, ensure_ascii=False) + "\n").encode())
                 self.wfile.flush()
@@ -1339,15 +1377,15 @@ def make_server(hw, path, group="root"):
     try:
         os.chown(path, os.geteuid(), grp.getgrnam(group).gr_gid)
     except (KeyError, PermissionError) as e:
-        log(f"Socket-Gruppe '{group}' konnte nicht gesetzt werden: {e}")
+        log(f"Could not set the socket group '{group}': {e}")
     srv.hw = hw
     return srv
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(description="hwpaneld: root daemon that monitors and limits GPU and CPU clocks.")
     ap.add_argument("--probe", action="store_true",
-                    help="Hardware nur lesen und als JSON ausgeben (kein Schreiben, kein Daemon)")
+                    help="only read the hardware and print it as JSON (no writing, no daemon)")
     args = ap.parse_args()
 
     if args.probe:
@@ -1359,18 +1397,18 @@ def main():
         return
 
     if os.geteuid() != 0:
-        sys.exit("hwpaneld muss als root laufen (zum Testen: --probe).")
+        sys.exit("hwpaneld must run as root (for testing: --probe).")
 
     hw = HW(RealIO(), DATA_DIR)
-    hw._event("Daemon gestartet")
+    hw._event(Msg("Daemon started"))
     hw._tick()
     auto = hw.cfg.get("autostart_profile")
     if auto:
         try:
             r = hw.apply_profile(auto)
-            log(f"Autostart-Profil '{auto}': {'ok' if r['ok'] else r['errors']}")
+            log(f"Autostart profile '{auto}': {'ok' if r['ok'] else r['errors']}")
         except ValueError as e:
-            log(f"Autostart-Profil '{auto}' nicht anwendbar: {e}")
+            log(f"Autostart profile '{auto}' not applicable: {e}")
 
     srv = make_server(hw, SOCKET_PATH, hw.cfg.get("socket_group", "root"))
     threading.Thread(target=hw.run_sampler, daemon=True).start()
@@ -1382,7 +1420,7 @@ def main():
     import signal
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    log(f"hwpaneld {VERSION} bereit auf {SOCKET_PATH}")
+    log(f"hwpaneld {VERSION} ready on {SOCKET_PATH}")
     try:
         srv.serve_forever()
     finally:

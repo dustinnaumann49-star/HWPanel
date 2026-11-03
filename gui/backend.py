@@ -12,7 +12,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Property, QCoreApplication, QObject, QThread, Signal, Slot
 
-from hwpanel_i18n import tr
+from hwpanel_i18n import message, message_field, message_list, tr
 from language import Language
 
 SOCKET_PATH = "/run/hwpanel/hwpanel.sock"
@@ -167,6 +167,7 @@ class Backend(QObject):
         super().__init__(parent)
         self._language = language if language is not None else Language()
         self._language.setParent(self)
+        self._language.languageChanged.connect(self._on_language)
         self._status, self._info = {}, {}
         self._view = {"t": [], "events": []}
         self._connected = False
@@ -223,15 +224,35 @@ class Backend(QObject):
         self._events = self._events[-300:]
         self._rebuild_view()
 
+    @Slot()
+    def _on_language(self):
+        """Texte des Daemons (Ereignisse, Lüfterfehler) werden erst hier übersetzt: noch einmal in der neuen Sprache darstellen."""
+        self._rebuild_view()
+        self.statusChanged.emit()
+
     @Slot(str, object)
     def _on_result(self, label, resp):
-        if resp.get("error"):
-            self.toast.emit(resp["error"], True)
-        elif resp.get("errors"):
-            self.toast.emit("; ".join(resp["errors"]), True)
+        error, errors = message_field(resp, "error"), message_list(resp, "errors")
+        if error:
+            self.toast.emit(error, True)
+        elif errors:
+            self.toast.emit("; ".join(errors), True)
         elif label:   # Folgebefehle ohne Text (z. B. Aufräumen beim Umbenennen) melden nur Fehler
-            notes = resp.get("notes") or []
+            notes = message_list(resp, "notes")
             self.toast.emit(label + (" (" + "; ".join(notes) + ")" if notes else ""), False)
+
+    @staticmethod
+    def _event_text(e, limit=110):
+        """Text eines Ereignisses in der aktuellen Sprache, gekürzt (lange Fehlermeldungen sprengen sonst das Diagramm)."""
+        text = message(e["msg"]) if e.get("msg") else e["text"]
+        return text if len(text) <= limit else text[:limit - 1] + "…"
+
+    def _localized_status(self):
+        """Status des Daemons mit dem Lüfterfehler in der aktuellen Sprache."""
+        fan = self._status.get("fan") if isinstance(self._status, dict) else None
+        if fan and fan.get("error_msg"):
+            return {**self._status, "fan": {**fan, "error": message(fan["error_msg"])}}
+        return self._status
 
     def _rebuild_view(self):
         samples = list(self._samples)[-(self._window + 2):]
@@ -248,7 +269,8 @@ class Backend(QObject):
                 for k in KEYS:
                     vals = [s.get(k) for s in chunk if s.get(k) is not None]
                     view[k].append(max(vals) if vals else None)
-            view["events"] = [e for e in self._events if now - self._window <= e["t"] <= now]
+            view["events"] = [{"t": e["t"], "text": self._event_text(e)}
+                              for e in self._events if now - self._window <= e["t"] <= now]
         self._view = view
         self.historyChanged.emit()
 
@@ -260,7 +282,7 @@ class Backend(QObject):
 
     @Property("QVariant", notify=statusChanged)
     def status(self):
-        return self._status
+        return self._localized_status()
 
     @Property("QVariant", notify=infoChanged)
     def info(self):

@@ -10,7 +10,7 @@ all upper limits are the driver defaults, read when the daemon starts for the fi
 - `gui/`: window and tray icon (PySide6/QML), same socket interface as the CLI.
 - Socket: `/run/hwpanel/hwpanel.sock` (one JSON object per line), data: `/var/lib/hwpanel/`.
 
-The GUI, the command-line output and the installer are available in English and German and follow the system language. The daemon's messages (errors, history events) are not translated yet and appear in German.
+The GUI, the command-line output, the installer and the daemon's messages (errors, history events) are available in English and German and follow the system language. The journal (`journalctl -u hwpanel`) is always in English.
 
 ## Requirements
 
@@ -146,6 +146,8 @@ python3 tests/bench_gui.py                            # measure drawing times (s
 ## Translations
 
 The source texts are English. Each language is a plain JSON file `locales/<code>.json` that maps the English text to its translation; the key `_name` is the language's own name. There is no build step: add a file and the language appears in the GUI. Missing entries fall back to English. `tests/test_i18n.py` checks that every text in the source code is translated and that placeholders and markup match.
+
+The daemon itself has no language. Every message it sends over the socket is an English text (the fields `error`, `errors`, `notes` and the `text` of a history event) plus a template with arguments (`error_msg`, `errors_msg`, `notes_msg` and the `msg` of an event) that the GUI and the CLI translate. Scripts that read the socket can simply use the English text. The state of the fan hardware (`hw_mode`) is one of `manual`, `automatic` and `off`.
 
 ## License
 

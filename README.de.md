@@ -10,7 +10,7 @@ Alle Obergrenzen sind die Treiber-Standardwerte, die beim ersten Start des Daemo
 - `gui/`: Fenster und Tray-Icon (PySide6/QML), gleiche Socket-Schnittstelle wie die CLI.
 - Socket: `/run/hwpanel/hwpanel.sock` (JSON pro Zeile), Daten: `/var/lib/hwpanel/`.
 
-GUI, Kommandozeile und Installationsskript gibt es auf Deutsch und Englisch, sie folgen der Systemsprache. Die Meldungen des Daemons (Fehler, Ereignisse im Verlauf) sind noch nicht übersetzt und erscheinen auf Deutsch.
+GUI, Kommandozeile, Installationsskript und die Meldungen des Daemons (Fehler, Ereignisse im Verlauf) gibt es auf Deutsch und Englisch, sie folgen der Systemsprache. Das Journal (`journalctl -u hwpanel`) ist immer Englisch.
 
 ## Voraussetzungen
 
@@ -146,6 +146,8 @@ python3 tests/bench_gui.py                            # Zeichenzeiten (Start, Se
 ## Übersetzungen
 
 Die Quelltexte sind Englisch. Jede Sprache ist eine einfache JSON-Datei `locales/<kürzel>.json`, die den englischen Text auf die Übersetzung abbildet; der Schlüssel `_name` ist der Name der Sprache in ihrer eigenen Sprache. Es gibt keinen Kompilierschritt: Datei anlegen, und die Sprache erscheint in der GUI. Fehlende Einträge fallen auf Englisch zurück. `tests/test_i18n.py` prüft, dass jeder Text im Quellcode übersetzt ist und Platzhalter und Markup übereinstimmen.
+
+Der Daemon selbst hat keine Sprache. Jede Meldung, die er über den Socket sendet, besteht aus einem englischen Text (die Felder `error`, `errors`, `notes` und der `text` eines Ereignisses im Verlauf) und einer Vorlage mit Argumenten (`error_msg`, `errors_msg`, `notes_msg` und die `msg` eines Ereignisses), die GUI und CLI übersetzen. Skripte, die den Socket lesen, können einfach den englischen Text nutzen. Der Zustand der Lüfter-Hardware (`hw_mode`) ist `manual`, `automatic` oder `off`.
 
 ## Lizenz
 

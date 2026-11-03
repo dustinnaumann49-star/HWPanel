@@ -102,3 +102,93 @@ def tr(text, **kw):
         return out.format(**kw)
     except (KeyError, IndexError, ValueError):
         return text.format(**kw)   # fehlerhafter Platzhalter in der Übersetzung: lieber Englisch als ein Absturz
+
+
+# ---------------------------------------------------------------- Meldungen des Daemons
+
+class Msg:
+    """Meldung des Daemons: englische Vorlage plus Argumente.
+
+    str() ergibt den englischen Text (Journal, Skripte, Clients ohne Übersetzung). to_json() geht an die Clients,
+    die die Vorlage über message() in ihrer Sprache darstellen. Argumente dürfen Texte, Zahlen, weitere Msg
+    und Listen sein (Listen werden mit ", " verbunden). Nutzertexte gehören immer in Argumente, nie in die Vorlage."""
+
+    __slots__ = ("tpl", "args")
+
+    def __init__(self, tpl, **args):
+        self.tpl, self.args = tpl, args
+
+    def __str__(self):
+        return _render(self.tpl, self.args, translate=False)
+
+    def __repr__(self):
+        return f"Msg({self.tpl!r}, {self.args!r})"
+
+    def to_json(self):
+        return {"tpl": self.tpl, "args": {k: _jsonable(v) for k, v in self.args.items()}}
+
+
+class MsgError(ValueError):
+    """Fehler mit übersetzbarer Meldung; str() ist der englische Text, .msg die Msg für das Protokoll."""
+
+    def __init__(self, tpl, **args):
+        self.msg = Msg(tpl, **args)
+        super().__init__(str(self.msg))
+
+
+def _jsonable(v):
+    if isinstance(v, Msg):
+        return v.to_json()
+    if isinstance(v, (list, tuple)):
+        return [_jsonable(x) for x in v]
+    return v if v is None or isinstance(v, (str, int, float, bool, dict)) else str(v)
+
+
+def _plain(v, translate):
+    """Ein Argument als Wert für format(): Meldungen und Listen werden zu Text, Zahlen bleiben Zahlen."""
+    if isinstance(v, Msg):
+        return _render(v.tpl, v.args, translate)
+    if isinstance(v, dict) and isinstance(v.get("tpl"), str):
+        return _render(v["tpl"], v.get("args") or {}, translate)
+    if isinstance(v, (list, tuple)):
+        return ", ".join(str(_plain(x, translate)) for x in v)
+    return v
+
+
+def _render(tpl, args, translate):
+    kw = {k: _plain(v, translate) for k, v in args.items()}
+    text = _state["catalog"].get(tpl, tpl) if translate else tpl
+    for candidate in (text, tpl):   # fehlerhafte Übersetzung: lieber Englisch als ein Absturz
+        try:
+            return candidate.format(**kw)
+        except (KeyError, IndexError, ValueError):
+            continue
+    return tpl
+
+
+def message(m):
+    """Stellt eine Meldung aus dem Protokoll in der aktuellen Sprache dar (m: {"tpl", "args"}, Msg oder einfacher Text)."""
+    if m is None:
+        return ""
+    if isinstance(m, str):
+        return m
+    if isinstance(m, Msg):
+        return _render(m.tpl, m.args, translate=True)
+    if isinstance(m, dict) and isinstance(m.get("tpl"), str):
+        return _render(m["tpl"], m.get("args") or {}, translate=True)
+    return str(m)
+
+
+def message_field(obj, key):
+    """Text eines Antwortfelds: bevorzugt <key>_msg in der aktuellen Sprache, sonst der einfache Text (älterer Daemon)."""
+    m = obj.get(key + "_msg")
+    return message(m) if m else str(obj.get(key) or "")
+
+
+def message_list(obj, key):
+    """Wie message_field für Listen (errors/errors_msg). Passen die Längen nicht zusammen, gelten die einfachen Texte."""
+    plain = obj.get(key) or []
+    msgs = obj.get(key + "_msg")
+    if isinstance(msgs, list) and len(msgs) == len(plain):
+        return [message(m) for m in msgs]
+    return [str(x) for x in plain]

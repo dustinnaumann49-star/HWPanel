@@ -126,6 +126,62 @@ class BackendTests(unittest.TestCase):
         self.be.setManual({"sclk_max": 2200}, {}, {})
         self.assertTrue(pump(lambda: any(t == "GPU-Einstellungen angewendet" and not e for t, e in self.toasts)))
 
+    def test_daemon_errors_in_toasts_follow_the_language(self):
+        self.toasts.clear()
+        self.be.setManual({"sclk_max": 99999}, {}, {})
+        self.assertTrue(pump(lambda: any(e for _, e in self.toasts)))
+        self.assertIn(("sclk_max=99999 außerhalb des erlaubten Bereichs 500-2679", True), self.toasts)
+        self.be.language.setLanguage("en")
+        self.toasts.clear()
+        self.be.setManual({"sclk_max": 99999}, {}, {})
+        self.assertTrue(pump(lambda: any(e for _, e in self.toasts)))
+        self.assertIn(("sclk_max=99999 is outside the allowed range 500-2679", True), self.toasts)
+
+    def test_history_events_follow_the_language_live(self):
+        self.be.applyProfile("KI")
+        self.assertTrue(pump(lambda: self.be.activeProfile == "KI"))
+        self.client.hw._tick()   # der Demo-Daemon legt keine neuen Proben an; Ereignisse zeigt das Diagramm erst bis zur letzten Probe
+        self.assertTrue(pump(lambda: any(e["text"] == "Profil KI" for e in self.be.history["events"])))
+        self.be.language.setLanguage("en")
+        self.assertTrue(any(e["text"] == "Profile KI" for e in self.be.history["events"]))
+        self.assertFalse(any(e["text"] == "Profil KI" for e in self.be.history["events"]))
+        self.be.language.setLanguage("de")
+        self.assertTrue(any(e["text"] == "Profil KI" for e in self.be.history["events"]))
+
+    def test_builtin_profile_event_uses_the_gui_name(self):
+        self.be.applyProfile("KI")
+        self.assertTrue(pump(lambda: self.be.activeProfile == "KI"))
+        self.be.applyProfile("Standard")
+        self.assertTrue(pump(lambda: self.be.activeProfile == "Standard"))
+        self.client.hw._tick()
+        self.assertTrue(pump(lambda: any(e["text"] == "Profil Standard" for e in self.be.history["events"])))
+        self.be.language.setLanguage("en")
+        self.assertTrue(any(e["text"] == "Profile Default" for e in self.be.history["events"]))
+
+    def test_fan_error_in_status_follows_the_language(self):
+        hw = self.client.hw
+        self.client.io.files[HWMON + "/temp1_input"] = "50000"
+        self.be.setManual({}, {}, {"sensor": "edge", "curve": [[30, 40], [80, 90]]})
+        self.assertTrue(pump(lambda: self.be.status["fan"]["mode"] == "curve"))
+        self.client.io.files.pop(HWMON + "/temp1_input")
+        hw.fan_step(now=1000)
+        self.assertTrue(pump(lambda: self.be.status["fan"]["error"] == "Sensor nicht lesbar"))
+        self.be.language.setLanguage("en")
+        self.assertEqual(self.be.status["fan"]["error"], "sensor not readable")
+        self.assertEqual(self.be.status["fan"]["error_msg"]["tpl"], "sensor not readable")   # Rohdaten bleiben erhalten
+
+    def test_long_event_text_is_shortened(self):
+        text = be.Backend._event_text({"t": 1, "text": "x" * 300})
+        self.assertEqual((len(text), text[-1]), (110, "…"))
+        self.assertEqual(be.Backend._event_text({"t": 1, "text": "short"}), "short")
+
+    def test_events_and_errors_from_an_older_daemon_without_templates(self):
+        self.assertEqual(be.Backend._event_text({"t": 1, "text": "Profil KI"}), "Profil KI")
+        self.toasts.clear()
+        self.be._on_result("label", {"ok": False, "errors": ["old a", "old b"]})
+        self.be._on_result("label", {"ok": False, "error": "old error"})
+        self.assertEqual(self.toasts, [("old a; old b", True), ("old error", True)])
+
     def test_name_check_messages_follow_the_language(self):
         self.be.language.setLanguage("en")
         self.assertEqual(self.be.profileNameError("Leise (Nacht)", ""), "Allowed: 1-32 characters, letters, digits, spaces, . _ -")

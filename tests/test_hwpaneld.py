@@ -399,7 +399,7 @@ class TestApply(Base):
         with mock.patch.object(self.io, "_od_write", side_effect=OSError(errno.EINVAL, "Invalid argument")):
             r = self.hw.set_gpu({"sclk_max": 2300})
         self.assertFalse(r["ok"])
-        self.assertIn("abgelehnt", r["errors"][0])
+        self.assertIn("rejected", r["errors"][0])
         self.assertEqual(self.hw.desired["gpu"], {})
 
     def test_readback_mismatch_reported(self):
@@ -412,15 +412,15 @@ class TestApply(Base):
         with mock.patch.object(self.io, "_od_write", side_effect=ignore_commit):
             r = self.hw.set_gpu({"sclk_max": 2300})
         self.assertFalse(r["ok"])
-        self.assertIn("erwartet 2300", r["errors"][0])
-        self.assertIn("(Fehler: sclk_max: erwartet 2300", self.hw._events[-1]["text"])
+        self.assertIn("expected 2300", r["errors"][0])
+        self.assertIn("(error: sclk_max: expected 2300", self.hw._events[-1]["text"])
 
     def test_driver_rounding_of_default_clock_is_not_an_error(self):
         """Reale Karte: Standard 2679 gespeichert, der Treiber meldet nach dem Reset 2674."""
         self.io.default["sclk"][1] = 2674
         r = self.hw.apply_profile("Standard")
         self.assertTrue(r["ok"], r)
-        self.assertEqual(self.hw._events[-1]["text"], "Profil Standard")
+        self.assertEqual(self.hw._events[-1]["text"], "Profile Default")
         self.assertEqual(r["active_profile"], "Standard")      # wird trotz Rundung als aktiv erkannt
 
     def test_changed_driver_default_is_only_a_note(self):
@@ -556,6 +556,17 @@ class TestHistory(Base):
             newer = self.hw.history(since=cutoff)["samples"]
             self.assertEqual([x["t"] for x in newer], [x["t"] for x in h["samples"][3:]])
 
+    def test_event_in_the_same_tenth_as_the_last_sample_is_not_lost(self):
+        """Der Client fragt mit dem Zeitstempel der letzten Probe nach Neuem. Zeitstempel sind auf 0,1 s gerundet:
+        Ein Ereignis, das nach dieser Probe in dieselbe Zehntelsekunde fällt, darf dabei nicht verloren gehen."""
+        with mock.patch("hwpaneld.time.time", return_value=1000.04):
+            self.hw._tick()
+            last = self.hw.history()["samples"][-1]["t"]
+            self.hw._event(hwpaneld.Msg("Profile {name}", name="KI"))   # nach dem Abruf, gleiche Zehntelsekunde
+        newer = self.hw.history(since=last)
+        self.assertEqual([e["text"] for e in newer["events"]], ["Profile KI"])
+        self.assertEqual(newer["samples"], [], "Proben bleiben streng neuer als since")
+
     def test_ring_buffer_limit(self):
         self.hw._hist = collections.deque(maxlen=60)
         for _ in range(100):
@@ -567,7 +578,7 @@ class TestHistory(Base):
         self.hw.set_gpu({"power_cap_w": 200})
         self.hw.reset("gpu")
         texts = [e["text"] for e in self.hw.history()["events"]]
-        self.assertEqual(texts, ["Profil KI", "Manuell: Power-Limit 200", "Zurückgesetzt (GPU)"])
+        self.assertEqual(texts, ["Profile KI", "Manual: Power limit 200", "Reset (GPU)"])
 
     def test_history_rejects_bad_since(self):
         for bad in ("x", True, [1]):
@@ -720,7 +731,7 @@ class TestFan(Base):
         self.assertEqual(self.pwm(), round(51 * 255 / 100))
         f = r["fan"]
         self.assertEqual((f["mode"], f["target_pct"], f["applied_pct"], f["hw_mode"]),
-                         ("curve", 51, 51, "manuell"))
+                         ("curve", 51, 51, "manual"))
         self.assertEqual(r["settings"]["fan"]["sensor"], "edge")
 
     def test_rise_is_immediate(self):
@@ -785,15 +796,15 @@ class TestFan(Base):
         self.hw.fan_step(now=1008)      # Spindown abgelaufen
         self.assertEqual(self.pwm(), round(70 * 255 / 100))
         texts = [e["text"] for e in self.hw.history()["events"]]
-        self.assertTrue(any("Sicherung aktiv" in t for t in texts))
-        self.assertTrue(any("Sicherung beendet" in t for t in texts))
+        self.assertTrue(any("safety active" in t for t in texts))
+        self.assertTrue(any("safety ended" in t for t in texts))
 
     def test_sensor_failure_falls_back_to_auto_and_recovers(self):
         self.start(edge=50)
         saved = self.io.files.pop(HWMON + "/temp1_input")
         self.hw.fan_step(now=1000)
         self.assertEqual(self.enable(), "2")
-        self.assertEqual(self.hw.fan_status()["error"], "Sensor nicht lesbar")
+        self.assertEqual(self.hw.fan_status()["error"], "sensor not readable")
         self.io.files[HWMON + "/temp1_input"] = saved
         self.hw.fan_step(now=1001)
         self.assertEqual(self.enable(), "1")
@@ -838,7 +849,7 @@ class TestFan(Base):
         with mock.patch.object(self.io, "write", side_effect=failing):
             r = self.hw.set_fan({"curve": CURVE})
             self.assertFalse(r["ok"])
-            self.assertIn("Lüfter", r["errors"][0])
+            self.assertIn("Fan", r["errors"][0])
             self.assertEqual(self.enable(), "2")
             self.hw.fan_step(now=time_now_plus(5))        # Wartezeit noch nicht abgelaufen
         self.hw.fan_step(now=time_now_plus(60))
@@ -912,8 +923,8 @@ class TestFan(Base):
         self.hw.set_fan({"mode": "auto"})
         self.assertEqual(self.enable(), "2")
         texts = [e["text"] for e in self.hw.history()["events"]]
-        self.assertEqual(texts[0], "Manuell: Lüfterkurve edge 30-80 °C, 40-90 %")
-        self.assertEqual(texts[1], "Manuell: Lüfter Automatik")
+        self.assertEqual(texts[0], "Manual: Fan curve edge 30-80 °C, 40-90 %")
+        self.assertEqual(texts[1], "Manual: Fan automatic")
 
     def test_config_overrides(self):
         with open(os.path.join(self.tmp.name, "config.json"), "w") as f:
@@ -1037,7 +1048,7 @@ class TestSocketAndCli(Base):
     def test_oc_rejected_over_socket(self):
         r = hwpanelctl.call({"cmd": "set_gpu", "values": {"sclk_max": 2900}})
         self.assertFalse(r["ok"])
-        self.assertIn("außerhalb", r["error"])
+        self.assertIn("outside the allowed range", r["error"])
         self.assertEqual(self.io.committed["sclk"][1], 2679)
 
     def test_cli_roundtrip(self):
@@ -1113,7 +1124,7 @@ class TestSocketAndCli(Base):
         self.assertEqual(r["fan"]["mode"], "curve")
         r = hwpanelctl.call({"cmd": "set_fan", "values": {"curve": [[30, 40]]}})
         self.assertFalse(r["ok"])
-        self.assertIn("Punkte", r["error"])
+        self.assertIn("points", r["error"])
 
 
 if __name__ == "__main__":

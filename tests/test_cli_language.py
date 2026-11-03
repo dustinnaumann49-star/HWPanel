@@ -19,11 +19,10 @@ import hwpaneld  # noqa: E402
 import hwpanelctl  # noqa: E402
 from test_hwpaneld import Base  # noqa: E402
 
-# typisch deutsche Wörter und Umlaute der CLI-Ausgabe: Auf Englisch darf nichts davon erscheinen.
-# Bewusst nicht dabei: "manuell"/"automatik", das der Daemon als hw_mode liefert (folgt mit den Daemon-Meldungen).
+# typisch deutsche Wörter und Umlaute der CLI-Ausgabe: Auf Englisch darf nichts davon erscheinen
 GERMAN = re.compile(r"[äöüÄÖÜß]|\b(Auslastung|Takt|Leistung|Lüfter\w*|Kurve|Grenzen|Punkte|Einstellungen|belegt|Ziel|gesetzt|"
                     r"Modus|eingebaut|schaltbar|Mindestwerte|Sicherung|unbekannt|Messwerte|Fehler|Hinweis|"
-                    r"Schutz|Maximaltakt|Profilname|Treiberautomatik|ja|nein)\b")
+                    r"Schutz|Maximaltakt|Profilname|Treiberautomatik|manuell|automatik|Schutzregel|abgelehnt|ja|nein)\b")
 
 DAEMON_DOWN_EN = "Daemon is not running (socket missing). Check: systemctl status hwpanel"
 DAEMON_DOWN_DE = "Daemon läuft nicht (Socket fehlt). Prüfen: systemctl status hwpanel"
@@ -166,6 +165,56 @@ class TestCliOutput(Base):
         _, out = self.cli("de", "status")
         self.assertIn("Lüfter-Regelung  Sensor edge ", out)
         self.assertIn("-> Ziel ", out)
+
+    def test_daemon_errors_are_shown_in_the_chosen_language(self):
+        rc, out = self.cli("en", "gpu", "--sclk", "9999")
+        self.assertEqual((rc, out), (1, "Error: sclk_max=9999 is outside the allowed range 500-2679\n"))
+        rc, out = self.cli("de", "gpu", "--sclk", "9999")
+        self.assertEqual((rc, out), (1, "Fehler: sclk_max=9999 außerhalb des erlaubten Bereichs 500-2679\n"))
+        rc, out = self.cli("de", "fan", "curve", "30:0,90:40")
+        self.assertEqual(rc, 1)
+        self.assertIn("Schutzregel", out)
+        rc, out = self.cli("en", "fan", "curve", "30:0,90:40")
+        self.assertIn("protection rule", out)
+
+    def test_daemon_notes_are_shown_in_the_chosen_language(self):
+        for i in range(8):
+            self.io.files[f"/sys/devices/system/cpu/cpu{i}/cpufreq/scaling_governor"] = "performance"
+        rc, out = self.cli("en", "cpu", "--epp", "power")
+        self.assertEqual(rc, 0)
+        self.assertIn("Note: EPP skipped: governor 'performance' ignores EPP", out)
+        rc, out = self.cli("de", "cpu", "--epp", "power")
+        self.assertIn("Hinweis: EPP übersprungen: Governor 'performance' ignoriert EPP", out)
+
+    def test_fan_state_and_fan_error_in_status(self):
+        from test_hwpaneld import HWMON
+        self.io.files[HWMON + "/temp1_input"] = "41000"
+        self.cli("en", "fan", "curve", "30:40,40:50,50:60,60:70,70:80,80:90")
+        self.assertIn("mode manual", self.cli("en", "status")[1])
+        self.assertIn("Modus manuell", self.cli("de", "status")[1])
+        self.io.files[HWMON + "/pwm1_enable"] = "2"
+        self.assertIn("mode automatic", self.cli("en", "status")[1])
+        self.assertIn("Modus automatik", self.cli("de", "status")[1])
+        self.io.files.pop(HWMON + "/temp1_input")
+        self.hw.fan_step(now=1000)
+        self.assertIn("Error: sensor not readable", self.cli("en", "status")[1])
+        self.assertIn("Fehler: Sensor nicht lesbar", self.cli("de", "status")[1])
+
+    def test_fan_mode_names(self):
+        i18n.set_language("de")
+        self.assertEqual([hwpanelctl.fan_mode_text(c) for c in ("manual", "automatic", "off", None, "weird")],
+                         ["manuell", "automatik", "aus", "-", "weird"])
+        i18n.set_language("en")
+        self.assertEqual([hwpanelctl.fan_mode_text(c) for c in ("manual", "automatic", "off")], ["manual", "automatic", "off"])
+
+    def test_results_from_an_older_daemon_without_templates(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            i18n.set_language("en")
+            rc = hwpanelctl.show_result({"ok": False, "errors": ["old plain text"], "notes": ["a note"]})
+            rc2 = hwpanelctl.show_result({"ok": False, "error": "old error"})
+        self.assertEqual((rc, rc2), (1, 1))
+        self.assertEqual(out.getvalue(), "Note: a note\nError: old plain text\nError: old error\n")
 
     def test_result_prefixes_follow_the_language(self):
         rc, out = self.cli("en", "gpu", "--sclk", "9999")     # über dem Standard: Daemon lehnt ab

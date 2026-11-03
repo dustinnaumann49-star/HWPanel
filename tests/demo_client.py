@@ -171,7 +171,7 @@ class DemoClient:
         try:
             return self.hw.handle(req)
         except (ValueError, TypeError) as e:
-            return {"ok": False, "error": str(e)}
+            return hwpaneld.error_response(e)   # wie der echte Server: Text und Meldung
 
 
 if __name__ == "__main__":
