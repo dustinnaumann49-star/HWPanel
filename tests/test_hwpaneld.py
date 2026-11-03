@@ -462,10 +462,22 @@ class TestWhitelist(Base):
             with self.assertRaises(PermissionError, msg=p):
                 self.hw._write(p, "1")
 
+    def test_paths_must_match_exactly(self):
+        # '$' würde vor einem angehängten Zeilenumbruch noch passen, '\d' auch Ziffern anderer Schriften
+        for p in (OD + "\n", HWMON + "/pwm1\n", HWMON + "/pwm1_enable\n", HWMON + "/power1_cap\n",
+                  CPU + "/cpu3/cpufreq/scaling_max_freq\n", CPU + "/intel_pstate/no_turbo\n",
+                  OD + " ", "\n" + OD,
+                  "/sys/class/drm/card٣/device/pp_od_clk_voltage",
+                  CPU + "/cpu٣/cpufreq/scaling_max_freq",
+                  HWMON.replace("hwmon3", "hwmon٣") + "/pwm1"):
+            self.assertFalse(hwpaneld.write_allowed(p), repr(p))
+            with self.assertRaises(PermissionError, msg=repr(p)):
+                self.hw._write(p, "1")
+
     def test_allowed_paths(self):
         for p in (OD, HWMON + "/power1_cap", CPU + "/cpu3/cpufreq/scaling_max_freq",
                   CPU + "/intel_pstate/no_turbo", HWMON + "/pwm1", HWMON + "/pwm1_enable"):
-            self.assertTrue(any(r.match(p) for r in hwpaneld.ALLOWED_WRITE), p)
+            self.assertTrue(hwpaneld.write_allowed(p), p)
 
     def test_readonly_mode_never_writes(self):
         io = FakeIO()
@@ -932,7 +944,7 @@ class TestFan(Base):
 
     def test_write_whitelist_for_fan(self):
         for p in (HWMON + "/pwm1", HWMON + "/pwm1_enable"):
-            self.assertTrue(any(r.match(p) for r in hwpaneld.ALLOWED_WRITE), p)
+            self.assertTrue(hwpaneld.write_allowed(p), p)
         for p in (HWMON + "/pwm1_max", HWMON + "/fan1_target", HWMON + "/temp1_input",
                   "/sys/class/hwmon/hwmon1/pwm1"):
             with self.assertRaises(PermissionError, msg=p):

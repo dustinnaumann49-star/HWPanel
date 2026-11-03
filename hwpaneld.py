@@ -48,14 +48,22 @@ DEFAULT_PROFILES = {
     "KI": {"gpu": {"sclk_max": 2300}, "cpu": {}},
 }
 
-ALLOWED_WRITE = [re.compile(p) for p in (
-    r"^/sys/class/drm/card\d+/device/pp_od_clk_voltage$",
-    r"^/sys/class/drm/card\d+/device/hwmon/hwmon\d+/power1_cap$",
-    r"^/sys/class/drm/card\d+/device/hwmon/hwmon\d+/(pwm1|pwm1_enable)$",
-    r"^/sys/devices/system/cpu/cpu\d+/cpufreq/(scaling_max_freq|scaling_governor|energy_performance_preference)$",
-    r"^/sys/devices/system/cpu/intel_pstate/no_turbo$",
-    r"^/sys/devices/system/cpu/cpufreq/boost$",
+ALLOWED_WRITE = [re.compile(p, re.ASCII) for p in (
+    r"/sys/class/drm/card\d+/device/pp_od_clk_voltage",
+    r"/sys/class/drm/card\d+/device/hwmon/hwmon\d+/power1_cap",
+    r"/sys/class/drm/card\d+/device/hwmon/hwmon\d+/(pwm1|pwm1_enable)",
+    r"/sys/devices/system/cpu/cpu\d+/cpufreq/(scaling_max_freq|scaling_governor|energy_performance_preference)",
+    r"/sys/devices/system/cpu/intel_pstate/no_turbo",
+    r"/sys/devices/system/cpu/cpufreq/boost",
 )]
+
+
+def write_allowed(path):
+    """Nur genau diese sysfs-Pfade dürfen beschrieben werden.
+
+    fullmatch statt '^...$': '$' passt auch vor einem angehängten Zeilenumbruch.
+    re.ASCII: '\\d' soll nur 0-9 sein, keine Ziffern anderer Schriften."""
+    return any(r.fullmatch(path) for r in ALLOWED_WRITE)
 
 
 def log(msg):
@@ -313,8 +321,8 @@ class HW:
     def _write(self, path, value):
         if self.readonly:
             raise PermissionError("Nur-Lese-Modus")
-        if not any(r.match(path) for r in ALLOWED_WRITE):
-            raise PermissionError(f"Schreibzugriff nicht erlaubt: {path}")
+        if not write_allowed(path):
+            raise PermissionError(f"Schreibzugriff nicht erlaubt: {path!r}")
         self.io.write(path, value)
 
     # ---- Erkennung
