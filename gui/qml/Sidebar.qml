@@ -38,7 +38,7 @@ Item {
         }
 
         Repeater {
-            model: ["Übersicht", "Verlauf", "Profile", "Manuell"]
+            model: [qsTr("Overview"), qsTr("History"), qsTr("Profiles"), qsTr("Manual")]
             NavButton {
                 Layout.fillWidth: true
                 text: modelData
@@ -59,16 +59,37 @@ Item {
             }
             Text {
                 Layout.fillWidth: true
-                text: backend.connected ? "Daemon verbunden" : "Daemon nicht erreichbar"
+                text: backend.connected ? qsTr("Daemon connected") : qsTr("Daemon not reachable")
                 color: backend.connected ? Theme.textDim : Theme.redError
                 font.pixelSize: Theme.fsSmall
                 elide: Text.ElideRight
             }
         }
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 6
+            spacing: 6
+            Text { text: qsTr("Language"); color: Theme.textDim; font.pixelSize: Theme.fsSmall }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: [{ code: "auto", label: qsTr("Auto"), hint: qsTr("Automatic (system language)") }].concat(
+                        backend.language.languages.map(function (l) { return { code: l.code, label: l.code.toUpperCase(), hint: l.name } }))
+                    GlowButton {
+                        compact: true
+                        text: modelData.label
+                        hint: modelData.hint
+                        active: backend.language.setting === modelData.code
+                        onClicked: backend.language.setLanguage(modelData.code)
+                    }
+                }
+            }
+        }
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 6
-            Text { Layout.fillWidth: true; text: "Beim Login starten"; color: Theme.textDim; font.pixelSize: Theme.fsSmall }
+            Text { Layout.fillWidth: true; text: qsTr("Start at login"); color: Theme.textDim; font.pixelSize: Theme.fsSmall }
             GlowSwitch {
                 implicitWidth: 42; implicitHeight: 22
                 checked: backend.autostartEnabled
@@ -79,7 +100,7 @@ Item {
             Layout.fillWidth: true
             Layout.topMargin: 6
             compact: true
-            text: "Beenden"
+            text: qsTr("Quit")
             onClicked: backend.quit()
         }
     }

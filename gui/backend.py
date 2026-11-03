@@ -12,6 +12,8 @@ from pathlib import Path
 
 from PySide6.QtCore import Property, QCoreApplication, QObject, QThread, Signal, Slot
 
+from language import Language
+
 SOCKET_PATH = "/run/hwpanel/hwpanel.sock"
 KEYS = ("g_edge", "g_junc", "g_mem", "g_pow", "g_busy", "g_clk", "g_fan", "g_fanp",
         "c_temp", "c_pow", "c_load", "c_clk")
@@ -159,8 +161,10 @@ class Backend(QObject):
     toast = Signal(str, bool)
     showRequested = Signal()
 
-    def __init__(self, client, start_page=0, minimized=False, parent=None):
+    def __init__(self, client, start_page=0, minimized=False, parent=None, language=None):
         super().__init__(parent)
+        self._language = language if language is not None else Language()
+        self._language.setParent(self)
         self._status, self._info = {}, {}
         self._view = {"t": [], "events": []}
         self._connected = False
@@ -182,6 +186,7 @@ class Backend(QObject):
     def shutdown(self):
         self._worker.stop()
         self._worker.wait(3000)
+        self._language.close()
 
     # ---- Daten vom Worker
 
@@ -246,6 +251,10 @@ class Backend(QObject):
         self.historyChanged.emit()
 
     # ---- Eigenschaften für QML
+
+    @Property(QObject, constant=True)
+    def language(self):
+        return self._language
 
     @Property("QVariant", notify=statusChanged)
     def status(self):

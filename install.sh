@@ -33,7 +33,13 @@ python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' || { echo "Python >
 
 install -d -m 755 "$LIB" "$DATA"
 install -m 755 hwpaneld.py "$LIB/hwpaneld.py"
-install -m 755 hwpanelctl.py "$BIN"
+install -m 755 hwpanelctl.py "$LIB/hwpanelctl.py"
+install -m 644 hwpanel_i18n.py "$LIB/hwpanel_i18n.py"
+rm -rf "$LIB/locales"
+cp -r locales "$LIB/locales"
+chmod -R a+rX "$LIB/locales"
+# Über den Link findet Python hwpanel_i18n.py neben dem echten Skript (ersetzt auch eine ältere, einzelne Datei)
+ln -sf "$LIB/hwpanelctl.py" "$BIN"
 install -m 644 hwpanel.service "$UNIT"
 [[ -f "$DATA/profiles.json" ]] || install -m 644 profiles.json "$DATA/profiles.json"
 

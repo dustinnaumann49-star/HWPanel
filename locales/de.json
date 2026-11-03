@@ -1,0 +1,20 @@
+{
+  "_name": "Deutsch",
+
+  "Overview": "Übersicht",
+  "History": "Verlauf",
+  "Profiles": "Profile",
+  "Manual": "Manuell",
+  "Daemon connected": "Daemon verbunden",
+  "Daemon not reachable": "Daemon nicht erreichbar",
+  "Start at login": "Beim Login starten",
+  "Quit": "Beenden",
+  "Language": "Sprache",
+  "Auto": "Auto",
+  "Automatic (system language)": "Automatisch (Systemsprache)",
+
+  "Daemon is not running (socket missing). Check: systemctl status hwpanel": "Daemon läuft nicht (Socket fehlt). Prüfen: systemctl status hwpanel",
+  "No access to the socket. Run with sudo or check the group in /var/lib/hwpanel/config.json (socket_group).": "Kein Zugriff auf den Socket. Mit sudo ausführen oder Gruppe in /var/lib/hwpanel/config.json (socket_group) prüfen.",
+  "No response from the daemon.": "Keine Antwort vom Daemon.",
+  "Language of the output, a code such as de or en (default: system language)": "Sprache der Ausgabe, ein Kürzel wie de oder en (Standard: Systemsprache)"
+}

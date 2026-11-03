@@ -13,6 +13,7 @@ os.environ.setdefault("QT_QUICK_BACKEND", "software")
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "gui"))
 
 from demo_client import DemoClient  # noqa: E402

@@ -8,7 +8,19 @@ import socket
 import sys
 import time
 
+import hwpanel_i18n as i18n
+
 SOCKET_PATH = os.environ.get("HWPANEL_SOCKET", "/run/hwpanel/hwpanel.sock")
+tr = i18n.tr
+
+
+def setup_language(argv):
+    """Legt die Sprache fest: --lang, dann HWPANEL_LANG, dann die Systemsprache.
+    Geschieht vor dem Aufbau des Parsers, damit auch die Hilfetexte übersetzt sind."""
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--lang")
+    known, _ = pre.parse_known_args(argv)
+    i18n.set_language(i18n.resolve(known.lang or os.environ.get("HWPANEL_LANG")))
 
 
 def call(req):
@@ -17,10 +29,12 @@ def call(req):
     try:
         s.connect(SOCKET_PATH)
     except FileNotFoundError:
-        sys.exit("Daemon läuft nicht (Socket fehlt). Prüfen: systemctl status hwpanel")
+        s.close()
+        sys.exit(tr("Daemon is not running (socket missing). Check: systemctl status hwpanel"))
     except PermissionError:
-        sys.exit("Kein Zugriff auf den Socket. Mit sudo ausführen oder Gruppe in "
-                 "/var/lib/hwpanel/config.json (socket_group) prüfen.")
+        s.close()
+        sys.exit(tr("No access to the socket. Run with sudo or check the group in "
+                    "/var/lib/hwpanel/config.json (socket_group)."))
     s.sendall((json.dumps(req) + "\n").encode())
     buf = b""
     while not buf.endswith(b"\n"):
@@ -30,7 +44,7 @@ def call(req):
         buf += chunk
     s.close()
     if not buf:
-        sys.exit("Keine Antwort vom Daemon.")
+        sys.exit(tr("No response from the daemon."))
     return json.loads(buf)
 
 
@@ -176,8 +190,11 @@ def cpu_values(a):
 
 
 def main():
+    setup_language(sys.argv[1:])
     ap = argparse.ArgumentParser(prog="hwpanelctl", description="Steuerung für hwpaneld")
     ap.add_argument("--json", action="store_true", help="Rohausgabe als JSON")
+    ap.add_argument("--lang", metavar="CODE",
+                    help=tr("Language of the output, a code such as de or en (default: system language)"))
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("status", help="Messwerte anzeigen")

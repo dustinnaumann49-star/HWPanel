@@ -13,7 +13,9 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # hwpanel_i18n.py und locales/ liegen im Hauptordner
 from backend import SOCKET_PATH, Backend, DaemonClient  # noqa: E402
+from language import CONFIG_FILE, Language  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 QML_MAIN = HERE / "qml" / "Main.qml"
@@ -138,7 +140,8 @@ def main():
 
     icon = load_icon()
     app.setWindowIcon(icon)
-    backend = Backend(DaemonClient(args.socket), start_page=args.page, minimized=False)
+    backend = Backend(DaemonClient(args.socket), start_page=args.page, minimized=False,
+                      language=Language(config_path=CONFIG_FILE))
     available = QSystemTrayIcon.isSystemTrayAvailable()
     app.setQuitOnLastWindowClosed(not available)  # ohne Tray beendet das Schließen des Fensters das Programm
     backend.trayAvailable = available

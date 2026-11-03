@@ -83,4 +83,9 @@ ApplicationWindow {
         target: backend
         function onToast(text, isError) { if (text) toast.show(text, isError) }
     }
+    // Sprachwechsel: alle qsTr()-Texte neu auswerten
+    Connections {
+        target: backend.language
+        function onLanguageChanged() { backend.language.retranslate(win) }
+    }
 }
