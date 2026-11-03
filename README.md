@@ -1,0 +1,108 @@
+# hwpanel
+
+Überwachung, Taktbegrenzung und Lüfterkurven für AMD-GPU (amdgpu) und CPU (cpufreq/intel_pstate). Kein Übertakten:
+Alle Obergrenzen sind die Treiber-Standardwerte, die beim ersten Start des Daemons ermittelt werden.
+
+- `hwpaneld.py`: Daemon (root, systemd). Schreibt nur auf eine feste Whitelist von sysfs-Pfaden.
+- `hwpanelctl.py`: CLI-Client.
+- `gui/`: Fenster und Tray-Icon (PySide6/QML), gleiche Socket-Schnittstelle wie die CLI.
+- Socket: `/run/hwpanel/hwpanel.sock` (JSON pro Zeile), Daten: `/var/lib/hwpanel/`.
+
+## Installation (fish/bash)
+
+```
+sudo bash install.sh --disable-lact
+```
+
+`--disable-lact` deaktiviert `lactd`, weil beide Programme in dieselben sysfs-Dateien schreiben.
+LACT bleibt installiert. Rückgängig: `sudo systemctl disable --now hwpanel` und `sudo systemctl enable --now lactd`.
+Entfernen: `sudo bash install.sh --uninstall`.
+
+Beim ersten Start setzt der Daemon die GPU einmal auf Treiberstandard zurück (`r` + `c`) und speichert
+die Werte in `/var/lib/hwpanel/defaults.json`. Danach wirken diese Werte als Obergrenze.
+
+## GUI
+
+```
+sudo pacman -S --needed pyside6       # einmalig
+hwpanel-gui                           # Fenster + Tray-Icon
+hwpanel-gui --minimized               # nur Tray
+```
+
+- Seiten: Übersicht (GPU/CPU/RAM live, Temperatur- und Leistungsdiagramm), Verlauf (Temperatur, Leistung, Auslastung inkl. Lüfter-%, Takt über 1 Min bis 1 Std), Profile (anwenden, anlegen, bearbeiten, löschen, "Beim Systemstart anwenden"), Manuell (Reiter "Takt & CPU" und "Lüfter").
+- Diagramme und Karten werden ohne Weichzeichner gezeichnet, versteckte Seiten zeichnen nicht mit. Das hält Start und Seitenwechsel flüssig.
+- Verlauf: Der Daemon hält die letzte Stunde im Speicher, auch wenn die GUI geschlossen ist. Gestrichelte Linien markieren Profilwechsel und manuelle Änderungen. Mit der Maus über ein Diagramm fahren zeigt die Werte.
+- Tray: Linksklick öffnet/versteckt das Fenster, das Menü wechselt das Profil. Fenster schließen versteckt es nur, Beenden im Menü oder in der Seitenleiste beendet die GUI.
+- Autostart der GUI: Schalter "Beim Login starten" in der Seitenleiste (legt `~/.config/autostart/hwpanel-gui.desktop` an).
+- Ohne Tray-Unterstützung der Desktopumgebung (z. B. GNOME ohne AppIndicator-Erweiterung) beendet das Schließen des Fensters die GUI.
+- Der Daemon läuft unabhängig von der GUI. Profile und Einstellungen gelten auch bei geschlossener GUI.
+
+## Benutzung
+
+```
+hwpanelctl status -w                  # Live-Anzeige
+hwpanelctl info                       # Grenzen, Standardwerte, Profile
+hwpanelctl gpu --sclk 2300            # GPU-Maximaltakt (MHz)
+hwpanelctl gpu --mclk 1000 --power 180
+hwpanelctl cpu --max-mhz 3500 --turbo off --epp power
+hwpanelctl reset [gpu|cpu|fan|all]    # auf Standard
+hwpanelctl fan curve 30:40,50:55,80:90        # eigene Lüfterkurve (°C:%), Sensor edge
+hwpanelctl fan curve 40:35,70:70,90:100 --sensor junction
+hwpanelctl fan auto                   # Treiberautomatik
+hwpanelctl apply Gaming               # Profil anwenden
+hwpanelctl apply KI
+hwpanelctl autostart KI               # beim Start des Daemons anwenden ('none' = aus)
+hwpanelctl save Leise --sclk 1800 --power 120
+hwpanelctl save Gaming2 --fan-curve 30:40,50:55,65:70,80:90 --fan-sensor edge
+hwpanelctl delete Leise
+```
+
+Hinweis zum VRAM-Takt: `--mclk` verwendet den sysfs-Wert (z. B. 1124). LACT zeigt das Doppelte (2248).
+
+## Profile
+
+Ein Profil legt den vollständigen Zustand fest: Alles, was nicht aufgeführt ist, wird auf Standard gesetzt.
+
+- `Standard` (eingebaut): alles zurück auf Standard.
+- `Gaming`: GPU und CPU auf Standardtakt, CPU-EPP `performance`.
+- `KI`: GPU-Maximaltakt 2300 MHz, Rest Standard.
+
+Profile liegen in `/var/lib/hwpanel/profiles.json`. Nach Suspend/Resume werden die zuletzt gesetzten Werte erneut angewendet.
+Die mitgelieferten Profile `Gaming` und `KI` enthalten keine Lüfterkurve (Automatik). Eigene Kurven legst du in der GUI an: Profil bearbeiten, Reiter "Lüfter".
+
+## Lüftersteuerung
+
+- Pro Profil entweder Treiberautomatik (Standard, im Leerlauf meist aus und leise) oder eine eigene Kurve. Ohne Kurve im Profil gilt Automatik. Ein Profil wie "Desktop" ohne Kurve hält die Lüfter im normalen Betrieb leise.
+- Kurve: 2 bis 10 Punkte (°C, %), Temperaturen aufsteigend, Prozentwerte nicht fallend, dazwischen linear. Unter dem ersten und über dem letzten Punkt gilt der jeweilige Endwert. Sensor: `edge`, `junction` oder `mem`.
+- Im Editor: Punkte ziehen, Doppelklick fügt einen hinzu, Entf löscht den gewählten Punkt, Pfeiltasten verschieben (Umschalt = 5er-Schritte). Die gestrichelte Linie zeigt die aktuelle Temperatur und den dazugehörigen Zielwert.
+- Verhalten: Steigt das Ziel, wird sofort geschrieben. Sinkt es, dauert es 5 s und mindestens 2 % Unterschied (verhindert Pendeln).
+- Schutz: Die Kurve muss bei 60 °C mindestens 30 % und bei 80 °C mindestens 50 % liefern, sonst wird sie abgelehnt. Ab 100 °C Junction läuft der Lüfter mit 100 % (Aufhebung unter 95 °C), unabhängig von der Kurve.
+- Fehlerfall: Sensor nicht lesbar oder Schreibfehler: Automatik, mit Wiederholung. Daemon-Ende, Absturz oder Hänger (systemd-Watchdog, 20 s): Lüfter geht zurück auf Automatik (`ExecStopPost`). Wird `pwm1_enable` von außen zurückgesetzt (z. B. nach Standby), setzt der Daemon die Kurve erneut.
+- Die Lüfterkonfiguration wird nicht über einen Daemon-Neustart gespeichert. Nach dem Boot gilt Automatik, bis ein Profil angewendet wird. Für einen festen Start: Schalter "Beim Systemstart anwenden" am Profil oder `hwpanelctl autostart NAME`.
+- `lactd` muss deaktiviert bleiben, sonst schreiben beide in `pwm1_enable`/`pwm1`.
+- Anpassbar in `/var/lib/hwpanel/config.json` (nach Änderung `sudo systemctl restart hwpanel`): `fan_safety_junction_c` (100), `fan_min_rules` (`[[60, 30], [80, 50]]`), `fan_spindown_s` (5), `fan_threshold_pct` (2).
+- 0 % ist im kühlen Bereich erlaubt (Lüfter steht). Die Schutzregeln greifen erst ab 60 °C bzw. 80 °C.
+
+## Grenzen und Verhalten
+
+- Werte über dem Standard werden abgelehnt (GPU-Takt, VRAM-Takt, Power-Limit, CPU-Takt). Spannung wird nie verändert.
+- Nach jedem Schreiben liest der Daemon zurück und meldet Abweichungen als Fehler.
+- RAM: nur Anzeige.
+- Lüfter: nur über Kurve mit Schutzregeln (siehe oben), nie `pwm1_enable=0` (Lüfter aus/Vollgas wird nicht geschrieben).
+- Konflikte: `lactd` und `power-profiles-daemon` können dieselben Werte ändern.
+
+## Diagnose
+
+```
+sudo python3 /usr/local/lib/hwpanel/hwpaneld.py --probe    # liest nur, schreibt nichts
+journalctl -u hwpanel -e
+```
+
+## Tests
+
+```
+python3 -m unittest discover -s tests                 # alles (ohne PySide6 werden die GUI-Tests übersprungen)
+QT_QPA_PLATFORM=offscreen python3 -m unittest tests.test_gui_backend tests.test_gui_qml
+python3 tests/render_gui.py /tmp/shots                # GUI mit Demo-Daten als PNG rendern
+python3 tests/bench_gui.py                            # Zeichenzeiten (Start, Seitenwechsel, Updates) messen
+```

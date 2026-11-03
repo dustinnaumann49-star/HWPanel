@@ -1,0 +1,20 @@
+singleton Theme 1.0 Theme.qml
+Card 1.0 Card.qml
+GlowButton 1.0 GlowButton.qml
+GlowSwitch 1.0 GlowSwitch.qml
+GlowSlider 1.0 GlowSlider.qml
+ChoiceRow 1.0 ChoiceRow.qml
+BarMeter 1.0 BarMeter.qml
+StatTile 1.0 StatTile.qml
+LineChart 1.0 LineChart.qml
+Toast 1.0 Toast.qml
+NavButton 1.0 NavButton.qml
+Sidebar 1.0 Sidebar.qml
+SettingsForm 1.0 SettingsForm.qml
+FanCurveEditor 1.0 FanCurveEditor.qml
+FanForm 1.0 FanForm.qml
+ProfileDialog 1.0 ProfileDialog.qml
+OverviewPage 1.0 OverviewPage.qml
+HistoryPage 1.0 HistoryPage.qml
+ProfilesPage 1.0 ProfilesPage.qml
+ControlPage 1.0 ControlPage.qml

@@ -1,0 +1,10 @@
+{
+  "Gaming": {
+    "gpu": {},
+    "cpu": {"epp": "performance"}
+  },
+  "KI": {
+    "gpu": {"sclk_max": 2300},
+    "cpu": {}
+  }
+}
