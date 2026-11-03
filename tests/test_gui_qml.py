@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Interaction test for the fan curve editor (QML, offscreen, simulated mouse events)."""
 
 import os

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Language of the GUI: setting (automatic or code), Qt translator for qsTr() and switching at runtime."""
 
 import json

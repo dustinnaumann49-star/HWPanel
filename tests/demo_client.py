@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Demo daemon for the GUI: real HW logic on FakeIO with a simulated history.
 
 Only used for rendering and trying out the interface without hardware.

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 # Installs hwpaneld (daemon), hwpanelctl (CLI) and hwpanel-gui (window + tray).
 #   sudo ./install.sh                  install
 #   sudo ./install.sh --disable-lact   install and disable lactd

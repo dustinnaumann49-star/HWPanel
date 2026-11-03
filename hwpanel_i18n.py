@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """hwpanel_i18n: language choice and translations for CLI and GUI.
 
 The texts in the source code are English. Each language is a file locales/<code>.json that maps the

@@ -181,5 +181,7 @@ Dieses Projekt wurde mit umfangreicher KI-Unterstützung entwickelt (Claude Code
 
 ## Lizenz
 
+Copyright (C) 2026 shadoweagle
+
 hwpanel steht unter der [GNU General Public License, Version 3 oder (nach deiner Wahl) jeder späteren Version](LICENSE) (GPL-3.0-or-later).
 Daemon und CLI brauchen nur die Python-Standardbibliothek. Die GUI nutzt PySide6 (LGPL) als Bibliothek, `dmidecode` wird als eigenes Programm aufgerufen.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Protection against accidentally weakening or over-hardening hwpanel.service."""
 
 import re

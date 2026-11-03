@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Messages of the daemon in the protocol: English text in the existing fields, plus template and arguments (*_msg),
 neutral identifiers instead of German words. In German rendering the old texts must be reproduced."""
 

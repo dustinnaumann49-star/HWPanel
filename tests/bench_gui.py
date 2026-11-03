@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Measures the drawing time of the GUI (start, page switch, data update) offscreen.
 
 Usage: python bench_gui.py   (software rendering; shows ratios, not the absolute time on real hardware)

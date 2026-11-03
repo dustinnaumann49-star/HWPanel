@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """install.sh: language of the messages and help. None of it needs root and none of it installs anything."""
 
 import os

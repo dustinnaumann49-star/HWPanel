@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Language choice of the command line: --lang, HWPANEL_LANG and system language."""
 
 import contextlib

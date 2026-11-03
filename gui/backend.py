@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Backend of the hwpanel GUI: daemon client in a background thread and data preparation for QML."""
 
 import collections

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Tests for hwpanel_i18n: language choice, catalogs, translating and the real catalogs in locales/."""
 
 import ast

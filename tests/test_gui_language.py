@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Tests for the language choice of the GUI: setting, Qt translator and switching at runtime in QML.
 
 Requires PySide6, otherwise the tests are skipped.

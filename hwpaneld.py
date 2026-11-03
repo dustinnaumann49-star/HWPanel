@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """hwpaneld: root daemon for monitoring and limiting GPU and CPU clocks.
 
 No overclocking: the upper limits are the driver defaults, which are determined on the

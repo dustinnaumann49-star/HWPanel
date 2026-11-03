@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Tests for the GUI backend (without display, with the demo daemon on FakeIO).
 
 Requires PySide6, otherwise the tests are skipped.

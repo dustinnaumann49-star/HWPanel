@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Tests against a replicated sysfs structure (values from real outputs of the author's machine)."""
 
 import collections

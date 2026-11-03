@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
 """Renders the GUI pages offscreen with simulated data as PNG (for visual inspection).
 
 Usage: python render_gui.py OUTPUT_DIR [page ...]
