@@ -36,6 +36,41 @@ function describeCpu(p) {
     return parts.length ? parts.join(" · ") : "CPU: Standard"
 }
 
+// Erklärungen für Auswahlwerte beim Darüberfahren (kind: "epp", "governor" oder "sensor").
+// Leerer Text, wenn der Wert unbekannt ist: Dann zeigt die Oberfläche nichts an.
+var OPTION_HINTS = {
+    epp: {
+        "default": "<b>Vorgabe der CPU.</b> Der Wert, den der Hersteller eingestellt hat, meist ähnlich wie „balance_performance“.",
+        "performance": "<b>Höchste Leistung.</b> Die CPU taktet sofort hoch und bleibt länger oben. Mehr Verbrauch, Wärme und Lüftergeräusch.",
+        "balance_performance": "<b>Ausgewogen, Richtung Leistung.</b> Eine gute Wahl für den Alltag am Desktop-PC.",
+        "balance_power": "<b>Ausgewogen, Richtung Sparsamkeit.</b> Die CPU taktet vorsichtiger hoch und braucht weniger Strom.",
+        "power": "<b>Maximal sparsam.</b> Die CPU bleibt möglichst niedrig getaktet. Leiser und kühler, dafür träger."
+    },
+    governor: {
+        "performance": "<b>Dauerhaft hoher Takt.</b> Die CPU läuft immer mit hohem Takt, auch im Leerlauf. Mehr Verbrauch und Wärme. Die Energie-Vorliebe (EPP) wird dabei ignoriert.",
+        "powersave": "<b>Takt nach Bedarf.</b> Bei Intel und AMD der normale Modus: niedrig im Leerlauf, hoch unter Last. Trotz des Namens nicht langsamer, die Energie-Vorliebe (EPP) bestimmt, wie zügig die CPU hochtaktet.",
+        "schedutil": "<b>Takt folgt der Last.</b> Der Kernel passt den Takt direkt an die Auslastung an. Ein guter Kompromiss aus Leistung und Verbrauch.",
+        "ondemand": "<b>Takt nach Bedarf.</b> Hoch bei Last, niedrig im Leerlauf. Reagiert etwas langsamer als „schedutil“.",
+        "conservative": "<b>Sanfte Taktwechsel.</b> Wie „ondemand“, aber der Takt steigt und sinkt in kleinen Schritten. Spart etwas Strom.",
+        "userspace": "<b>Takt von Hand.</b> Ein Programm legt den Takt selbst fest. Für die normale Nutzung nicht gedacht."
+    },
+    sensor: {
+        "edge": "<b>Edge (Kante).</b> Temperatur am Rand des GPU-Chips, der Wert, den die meisten Programme als GPU-Temperatur anzeigen. Steigt langsamer als Junction.",
+        "junction": "<b>Junction (Hotspot).</b> Die heißeste Stelle im GPU-Chip. Reagiert am schnellsten und liegt höher als Edge. Gut, wenn der Lüfter früh reagieren soll.",
+        "mem": "<b>VRAM.</b> Temperatur der Grafikspeicher-Chips. Sinnvoll, wenn bei dir der Speicher der heißeste Teil ist."
+    }
+}
+
+// Bei diesen Treibern regelt "powersave" den Takt nach Bedarf; bei anderen hält er den niedrigsten Takt.
+var PSTATE_DRIVERS = ["intel_pstate", "amd-pstate", "amd-pstate-epp"]
+
+function optionHint(kind, value, driver) {
+    if (kind === "governor" && value === "powersave" && driver && PSTATE_DRIVERS.indexOf(driver) < 0)
+        return "<b>Niedrigster Takt.</b> Bei diesem Treiber hält „powersave“ die CPU dauerhaft auf dem niedrigsten Takt. Sehr sparsam, aber langsam."
+    var group = OPTION_HINTS[kind]
+    return (group && group[value]) || ""
+}
+
 function windowLabel(s) {
     if (s < 3600) return (s / 60) + " Min"
     return (s / 3600) + " Std"

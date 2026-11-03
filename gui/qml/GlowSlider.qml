@@ -7,6 +7,7 @@ Item {
     property string title: ""
     property string unit: ""
     property string note: ""
+    property string hint: ""     // Erklärung beim Darüberfahren über die Beschriftung
     property real from: 0
     property real to: 100
     property real value: 0
@@ -17,14 +18,7 @@ Item {
     implicitWidth: 280
     opacity: enabled ? 1 : 0.4
 
-    Text {
-        id: head
-        text: root.title
-        color: Theme.textDim
-        font.pixelSize: Theme.fsTiny
-        font.letterSpacing: 1.2
-        font.capitalization: Font.AllUppercase
-    }
+    HelpLabel { id: head; text: root.title; hint: root.hint }
     Text {
         anchors.right: parent.right
         text: Math.round(root.value) + " " + root.unit + (root.note ? "   " + root.note : "")

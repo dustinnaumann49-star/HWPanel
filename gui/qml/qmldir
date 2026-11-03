@@ -3,6 +3,8 @@ Card 1.0 Card.qml
 GlowButton 1.0 GlowButton.qml
 GlowSwitch 1.0 GlowSwitch.qml
 GlowSlider 1.0 GlowSlider.qml
+Hint 1.0 Hint.qml
+HelpLabel 1.0 HelpLabel.qml
 ChoiceRow 1.0 ChoiceRow.qml
 BarMeter 1.0 BarMeter.qml
 StatTile 1.0 StatTile.qml

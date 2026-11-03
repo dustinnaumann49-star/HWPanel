@@ -87,6 +87,7 @@ Item {
             GlowSlider {
                 Layout.fillWidth: true
                 title: "GPU-Maximaltakt"; unit: "MHz"; stepSize: 10
+                hint: "<b>Obergrenze für den GPU-Takt.</b> Niedriger heißt weniger Leistung, Verbrauch und Wärme. Über den Standard hinaus geht es nicht, hwpanel übertaktet nie."
                 from: f.lo("gpu", "sclk_max"); to: f.hi("gpu", "sclk_max"); value: f.sclk
                 enabled: f.limit("gpu", "sclk_max") !== null
                 note: f.sclk >= f.hi("gpu", "sclk_max") ? "Standard" : ""
@@ -95,6 +96,7 @@ Item {
             GlowSlider {
                 Layout.fillWidth: true
                 title: "VRAM-Maximaltakt"; unit: "MHz"; stepSize: 1
+                hint: "<b>Obergrenze für den Grafikspeicher-Takt.</b> Niedriger spart Strom, kann aber Spiele ausbremsen. In LACT steht der doppelte Wert."
                 from: f.lo("gpu", "mclk_max"); to: f.hi("gpu", "mclk_max"); value: f.mclk
                 enabled: f.limit("gpu", "mclk_max") !== null
                 note: f.mclk >= f.hi("gpu", "mclk_max") ? "Standard" : "LACT: " + Math.round(f.mclk * 2)
@@ -103,6 +105,7 @@ Item {
             GlowSlider {
                 Layout.fillWidth: true
                 title: "Power-Limit"; unit: "W"; stepSize: 1
+                hint: "<b>Maximale Leistungsaufnahme der Grafikkarte in Watt.</b> Weniger bedeutet leiser, kühler und etwas langsamer."
                 from: f.lo("gpu", "power_cap_w"); to: f.hi("gpu", "power_cap_w"); value: f.power
                 enabled: f.limit("gpu", "power_cap_w") !== null
                 note: f.power >= f.hi("gpu", "power_cap_w") ? "Standard" : ""
@@ -117,6 +120,7 @@ Item {
             GlowSlider {
                 Layout.fillWidth: true
                 title: "CPU-Maximaltakt"; unit: "MHz"; stepSize: 100
+                hint: "<b>Obergrenze für den CPU-Takt.</b> Niedriger heißt weniger Leistung, Verbrauch und Wärme. Über den Standard hinaus geht es nicht."
                 from: f.lo("cpu", "max_mhz"); to: f.hi("cpu", "max_mhz"); value: f.maxMhz
                 enabled: f.limit("cpu", "max_mhz") !== null
                 note: f.maxMhz >= f.hi("cpu", "max_mhz") ? "Standard" : ""
@@ -126,20 +130,32 @@ Item {
                 Layout.fillWidth: true
                 enabled: Fmt.get(f.cpuInfo, ["turbo_supported"], false)
                 opacity: enabled ? 1 : 0.4
-                Text { text: "TURBO BOOST"; color: Theme.textDim; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.2 }
+                HelpLabel {
+                    text: "Turbo Boost"
+                    hint: "<b>Turbo Boost.</b> Erlaubt der CPU, kurzzeitig über ihren Basistakt zu takten. Aus: leiser und kühler, aber spürbar weniger Leistung unter Last."
+                }
                 Item { Layout.fillWidth: true }
                 GlowSwitch { checked: f.turbo; onToggled: (v) => f.turbo = v }
             }
-            Text { text: "ENERGY PERFORMANCE PREFERENCE"; color: Theme.textDim; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.2 }
+            HelpLabel {
+                text: "Energy Performance Preference"
+                hint: "<b>Energie-Vorliebe (EPP).</b> Legt fest, ob die CPU eher auf Leistung oder auf Sparsamkeit setzt. Wirkt nur mit dem Governor „powersave“. Fahre über die Optionen für Details."
+            }
             ChoiceRow {
                 Layout.fillWidth: true
+                kind: "epp"
                 options: Fmt.get(f.cpuInfo, ["epp_options"], [])
                 current: f.epp
                 onPicked: (v) => f.epp = v
             }
-            Text { text: "GOVERNOR"; color: Theme.textDim; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.2 }
+            HelpLabel {
+                text: "Governor"
+                hint: "<b>Takt-Strategie.</b> Bestimmt, wie die CPU ihren Takt wählt. Bei Intel und AMD ist meist „powersave“ mit passender Energie-Vorliebe richtig, bei anderen Treibern „schedutil“. Fahre über die Optionen für Details."
+            }
             ChoiceRow {
                 Layout.fillWidth: true
+                kind: "governor"
+                driver: Fmt.get(f.cpuInfo, ["driver"], "")
                 options: Fmt.get(f.cpuInfo, ["governors"], [])
                 current: f.gov
                 onPicked: (v) => f.gov = v

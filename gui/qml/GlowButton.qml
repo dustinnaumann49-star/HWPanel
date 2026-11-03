@@ -7,6 +7,8 @@ Item {
     property bool primary: false
     property bool active: false
     property bool compact: false
+    property string hint: ""       // Erklärung beim Darüberfahren (leer = keine)
+    property bool hintOff: false   // nach einem Klick ausgeblendet, bis die Maus den Knopf verlässt
     property color textColor: lit ? "white" : Theme.text
     signal clicked()
 
@@ -60,5 +62,8 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: root.clicked()
+        onPressed: root.hintOff = true
+        onContainsMouseChanged: if (!containsMouse) root.hintOff = false
     }
+    Hint { wanted: mouse.containsMouse && !root.hintOff && root.hint !== ""; text: root.hint }
 }

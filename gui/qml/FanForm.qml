@@ -79,10 +79,14 @@ Item {
             Layout.fillWidth: true
             visible: f.supported
             spacing: 12
-            Text { text: "SENSOR"; color: Theme.textDim; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.2 }
+            HelpLabel {
+                text: "Sensor"
+                hint: "<b>Welche Temperatur die Lüfterkurve nutzt.</b> Fahre über die Optionen für Details."
+            }
             ChoiceRow {
                 enabled: f.curveOn
                 opacity: enabled ? 1 : 0.45
+                kind: "sensor"
                 options: Fmt.get(f.info, ["sensors"], ["edge", "junction", "mem"])
                 current: f.sensor
                 onPicked: (v) => f.sensor = v

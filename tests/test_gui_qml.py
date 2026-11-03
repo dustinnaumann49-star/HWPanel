@@ -13,7 +13,7 @@ HERE = Path(__file__).resolve().parent
 QML_DIR = HERE.parent / "gui" / "qml"
 
 try:
-    from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPoint, Qt, QUrl, Q_ARG
+    from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPoint, QPointF, Qt, QUrl, Q_ARG
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
     from PySide6.QtQuick import QQuickWindow
@@ -46,11 +46,39 @@ Window {
 """
 
 
+HINT_WRAPPER = """
+import QtQuick
+import QtQuick.Window
+import "%s"
+
+Window {
+    width: 760; height: 620; visible: true
+    Column {
+        x: 20; y: 20; spacing: 50
+        ChoiceRow { objectName: "epp"; kind: "epp"
+                    options: ["default", "performance", "balance_performance", "balance_power", "power"] }
+        ChoiceRow { objectName: "gov"; kind: "governor"; driver: "intel_pstate"
+                    options: ["performance", "powersave", "schedutil", "ondemand", "conservative", "userspace"] }
+        ChoiceRow { objectName: "gov_acpi"; kind: "governor"; driver: "acpi-cpufreq"; options: ["powersave"] }
+        ChoiceRow { objectName: "sensor"; kind: "sensor"; options: ["edge", "junction", "mem"] }
+        ChoiceRow { objectName: "unknown"; kind: "epp"; options: ["gibtsnicht"] }
+        HelpLabel { objectName: "help"; text: "Turbo Boost"; hint: "<b>Erklärung.</b> Text" }
+    }
+}
+"""
+
+
 def pump(sec=0.15):
     end = time.time() + sec
     while time.time() < end:
         QCoreApplication.processEvents()
         time.sleep(0.01)
+
+
+def walk(item):
+    for ch in item.childItems():
+        yield ch
+        yield from walk(ch)
 
 
 @unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
@@ -189,6 +217,119 @@ class FanEditorTests(unittest.TestCase):
         QTest.mouseClick(self.win, Qt.LeftButton, Qt.NoModifier, self.pos(65, 10))
         pump(0.05)
         self.assertEqual(self.ed.property("selected"), -1)
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+class HintTests(unittest.TestCase):
+    """Erklärungen beim Darüberfahren (Auswahlknöpfe und Beschriftungen)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication(sys.argv[:1])
+        cls.tmp = tempfile.TemporaryDirectory()
+        path = Path(cls.tmp.name) / "hint_wrapper.qml"
+        path.write_text(HINT_WRAPPER % QUrl.fromLocalFile(str(QML_DIR)).toString(), encoding="utf-8")
+        cls.engine = QQmlApplicationEngine()
+        cls.engine.load(QUrl.fromLocalFile(str(path)))
+        assert cls.engine.rootObjects(), "Wrapper-QML konnte nicht geladen werden"
+        cls.win = cls.engine.rootObjects()[0]
+        pump(0.5)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.win.close()
+        cls.tmp.cleanup()
+
+    def setUp(self):
+        QTest.mouseMove(self.win, QPoint(2, 2))
+        pump(0.1)
+
+    # ---- Hilfen
+
+    def row(self, name):
+        return self.win.findChild(QObject, name)
+
+    def buttons(self, name):
+        """Auswahlknöpfe einer Zeile: Text -> Element."""
+        return {b.property("text"): b for b in walk(self.row(name)) if b.property("hint") is not None}
+
+    def hints(self, name):
+        return {text: b.property("hint") for text, b in self.buttons(name).items()}
+
+    def tips(self, item):
+        return [o for o in item.findChildren(QObject) if o.inherits("QQuickToolTip")]
+
+    def hover(self, item, wait=0.8):
+        c = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
+        QTest.mouseMove(self.win, QPoint(round(c.x()), round(c.y())))
+        pump(wait)
+        return c
+
+    # ---- Texte
+
+    def test_every_epp_option_is_explained(self):
+        hints = self.hints("epp")
+        self.assertEqual(set(hints), {"default", "performance", "balance_performance", "balance_power", "power"})
+        for text, hint in hints.items():
+            self.assertIn("<b>", hint, text)
+        self.assertEqual(len(set(hints.values())), 5, "jede Option braucht einen eigenen Text")
+
+    def test_governor_hint_depends_on_driver(self):
+        gov = self.hints("gov")
+        self.assertIn("Takt nach Bedarf", gov["powersave"])
+        self.assertIn("ignoriert", gov["performance"])
+        for name in ("schedutil", "ondemand", "conservative", "userspace"):
+            self.assertNotEqual(gov[name], "", name)
+        self.assertIn("niedrigsten Takt", self.hints("gov_acpi")["powersave"])
+
+    def test_fan_sensors_are_explained(self):
+        hints = self.hints("sensor")
+        self.assertEqual(set(hints), {"edge", "junction", "mem"})
+        self.assertTrue(all(hints.values()))
+
+    def test_unknown_option_has_no_hint(self):
+        self.assertEqual(self.hints("unknown"), {"gibtsnicht": ""})
+
+    # ---- Verhalten
+
+    def test_hover_shows_hint_after_delay_and_hides_again(self):
+        btn = self.buttons("epp")["performance"]
+        tip = self.tips(btn)[0]
+        self.assertFalse(tip.property("visible"))
+        self.hover(btn, wait=0.1)
+        self.assertFalse(tip.property("visible"), "darf nicht sofort aufblitzen")
+        pump(0.7)
+        self.assertTrue(tip.property("visible"))
+        self.assertEqual(tip.property("text"), btn.property("hint"))
+        QTest.mouseMove(self.win, QPoint(2, 2))
+        pump(0.3)
+        self.assertFalse(tip.property("visible"))
+
+    def test_no_popup_for_option_without_hint(self):
+        btn = self.buttons("unknown")["gibtsnicht"]
+        self.hover(btn)
+        self.assertFalse(self.tips(btn)[0].property("visible"))
+
+    def test_click_hides_hint_until_mouse_leaves(self):
+        btn = self.buttons("epp")["power"]
+        tip = self.tips(btn)[0]
+        c = self.hover(btn)
+        self.assertTrue(tip.property("visible"))
+        QTest.mouseClick(self.win, Qt.LeftButton, Qt.NoModifier, QPoint(round(c.x()), round(c.y())))
+        pump(0.8)
+        self.assertFalse(tip.property("visible"), "nach dem Klick keine Erklärung mehr")
+        QTest.mouseMove(self.win, QPoint(2, 2))
+        pump(0.2)
+        self.hover(btn)
+        self.assertTrue(tip.property("visible"), "nach erneutem Darüberfahren wieder")
+
+    def test_label_with_hint(self):
+        label = self.row("help")
+        self.hover(label)
+        tips = self.tips(label)
+        self.assertEqual(len(tips), 1)
+        self.assertTrue(tips[0].property("visible"))
+        self.assertIn("Erklärung", tips[0].property("text"))
 
 
 if __name__ == "__main__":
