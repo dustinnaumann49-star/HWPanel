@@ -8,7 +8,8 @@ ToolTip {
     id: tip
     property bool wanted: false
 
-    contentWidth: 300
+    // so breit wie der Text, höchstens 300 px (längere Texte brechen um)
+    contentWidth: Math.min(300, Math.ceil(metrics.advanceWidth) + 2)
     padding: 14
     margins: 12
     timeout: -1
@@ -29,6 +30,7 @@ ToolTip {
     }
 
     Timer { id: delay; interval: 350; onTriggered: if (tip.wanted && tip.text !== "") tip.open() }
+    TextMetrics { id: metrics; text: tip.text; font.pixelSize: Theme.fsSmall }
 
     contentItem: Text {
         width: tip.availableWidth

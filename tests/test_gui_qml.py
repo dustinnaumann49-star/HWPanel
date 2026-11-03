@@ -63,6 +63,7 @@ Window {
         ChoiceRow { objectName: "sensor"; kind: "sensor"; options: ["edge", "junction", "mem"] }
         ChoiceRow { objectName: "unknown"; kind: "epp"; options: ["gibtsnicht"] }
         HelpLabel { objectName: "help"; text: "Turbo Boost"; hint: "<b>Erklärung.</b> Text" }
+        HelpLabel { objectName: "help_short"; text: "Kurz"; hint: "Deutsch" }
     }
 }
 """
@@ -322,6 +323,14 @@ class HintTests(unittest.TestCase):
         pump(0.2)
         self.hover(btn)
         self.assertTrue(tip.property("visible"), "nach erneutem Darüberfahren wieder")
+
+    def test_card_width_fits_short_text_and_is_capped_for_long_text(self):
+        label = self.row("help_short")
+        btn = self.buttons("epp")["performance"]
+        short, long_ = self.tips(label)[0], self.tips(btn)[0]
+        self.assertLess(short.property("contentWidth"), 120, "ein Wort braucht keine 300 px breite Karte")
+        self.assertGreater(short.property("contentWidth"), 20)
+        self.assertEqual(long_.property("contentWidth"), 300)
 
     def test_label_with_hint(self):
         label = self.row("help")
