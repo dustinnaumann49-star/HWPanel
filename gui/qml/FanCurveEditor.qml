@@ -100,6 +100,9 @@ Item {
     }
 
     function repaint() { if (visible) cv.requestPaint() }
+    // direkt auf die Leinwand gezeichneter Text: Änderung der Sprache löst ein Neuzeichnen aus
+    readonly property string liveText: qsTr("now %1 °C → %2 %")
+    onLiveTextChanged: cv.requestPaint()
     onPointsChanged: repaint()
     onTempNowChanged: repaint()
     onSelectedChanged: repaint()
@@ -188,7 +191,7 @@ Item {
                 ctx.fillStyle = "#ffffff"
                 ctx.beginPath(); ctx.arc(lx, ly, 4, 0, 6.283); ctx.fill()
                 ctx.restore()
-                var txt = "jetzt " + Math.round(root.tempNow) + " °C → " + Math.round(root.liveTarget) + " %"
+                var txt = root.liveText.arg(Math.round(root.tempNow)).arg(Math.round(root.liveTarget))
                 ctx.font = "11px sans-serif"
                 var tw = ctx.measureText(txt).width
                 var bx = (lx + 8 + tw + 8 > R) ? lx - tw - 12 : lx + 8

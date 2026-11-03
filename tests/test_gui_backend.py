@@ -19,14 +19,17 @@ sys.path.insert(0, str(HERE.parent / "gui"))
 try:
     from PySide6.QtCore import QCoreApplication
     from PySide6.QtWidgets import QApplication
-    import backend as be
     HAVE_QT = True
 except ImportError:  # pragma: no cover
     HAVE_QT = False
 
-if HAVE_QT:
+if HAVE_QT:   # Fehler in den Projektmodulen sollen auffallen und nicht als "übersprungen" enden
+    import backend as be
     from demo_client import DemoClient
+    from language import Language
     from test_hwpaneld import HWMON
+
+DE = {"LANG": "de_DE.UTF-8"}   # Die Texte der Tests sind deutsch: Sprache festnageln, unabhängig von der Umgebung
 
 
 def pump(cond, timeout=6.0):
@@ -47,7 +50,7 @@ class BackendTests(unittest.TestCase):
 
     def setUp(self):
         self.client = DemoClient(duration=300)
-        self.be = be.Backend(self.client)
+        self.be = be.Backend(self.client, language=Language(env=DE))
         self.toasts = []
         self.be.toast.connect(lambda t, e: self.toasts.append((t, e)))
         self.assertTrue(pump(lambda: self.be.connected and self.be.info and self.be.history["t"]))
@@ -109,6 +112,26 @@ class BackendTests(unittest.TestCase):
         self.assertTrue(any("Profil KI angewendet" in t and not e for t, e in self.toasts))
         self.be.applyProfile("Standard")
         self.assertTrue(pump(lambda: self.be.activeProfile == "Standard"))
+
+    def test_toasts_follow_the_language(self):
+        self.be.language.setLanguage("en")
+        self.toasts.clear()
+        self.be.applyProfile("KI")
+        self.assertTrue(pump(lambda: any(t == "Profile KI applied" and not e for t, e in self.toasts)))
+        self.toasts.clear()
+        self.be.applyProfile("Standard")   # das eingebaute Profil heißt auf Englisch "Default"
+        self.assertTrue(pump(lambda: any(t == "Profile Default applied" and not e for t, e in self.toasts)))
+        self.be.language.setLanguage("de")
+        self.toasts.clear()
+        self.be.setManual({"sclk_max": 2200}, {}, {})
+        self.assertTrue(pump(lambda: any(t == "GPU-Einstellungen angewendet" and not e for t, e in self.toasts)))
+
+    def test_name_check_messages_follow_the_language(self):
+        self.be.language.setLanguage("en")
+        self.assertEqual(self.be.profileNameError("Leise (Nacht)", ""), "Allowed: 1-32 characters, letters, digits, spaces, . _ -")
+        self.assertEqual(self.be.profileNameError("KI", ""), "A profile with this name already exists")
+        self.be.language.setLanguage("de")
+        self.assertEqual(self.be.profileNameError("KI", ""), "Ein Profil mit diesem Namen gibt es schon")
 
     def test_manual_settings_and_error_toast(self):
         self.be.setManual({"sclk_max": 2200.0}, {"max_mhz": 3000.0}, {})
@@ -176,8 +199,10 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(err("", ""), "", "leer: Speichern ist ohnehin gesperrt")
         self.assertEqual(err("KI", "KI"), "", "Bearbeiten ohne Umbenennen")
         for bad, editing in (("Leise (Nacht)", ""), ("standard", ""), ("KI", ""),
-                             ("KI", "Gaming"), ("x" * 33, ""), (".punkt", "")):
+                             ("KI", "Gaming"), ("x" * 33, ""), (".punkt", ""),
+                             ("Default", ""), ("default", "")):   # so heißt das eingebaute Profil auf Englisch
             self.assertNotEqual(err(bad, editing), "", bad)
+        self.assertEqual(err("Default", "Default"), "", "ein schon vorhandenes Profil lässt sich weiter bearbeiten")
 
     def test_profile_name_check_matches_daemon(self):
         hw = self.client.hw
@@ -301,7 +326,7 @@ class RealSocketTests(unittest.TestCase):
             srv = hwpaneld.make_server(demo.hw, path)
             th = threading.Thread(target=srv.serve_forever, daemon=True)
             th.start()
-            b = be.Backend(be.DaemonClient(path))
+            b = be.Backend(be.DaemonClient(path), language=Language(env=DE))
             try:
                 self.assertTrue(pump(lambda: b.connected and b.info and len(b.history["t"]) >= 60))
                 b.applyProfile("KI")
@@ -322,7 +347,7 @@ class TrayTests(unittest.TestCase):
         app = QApplication.instance() or QApplication(sys.argv[:1])
         import hwpanel_gui
         client = DemoClient(duration=120)
-        b = be.Backend(client)
+        b = be.Backend(client, language=Language(env=DE))
         try:
             self.assertTrue(pump(lambda: b.connected and b.info))
 
@@ -352,6 +377,41 @@ class TrayTests(unittest.TestCase):
             self.assertTrue(win.visible)
             tray.toggle()
             self.assertFalse(win.visible)
+        finally:
+            b.shutdown()
+            client.close()
+
+    def test_menu_and_tooltip_follow_the_language(self):
+        app = QApplication.instance() or QApplication(sys.argv[:1])
+        import hwpanel_gui
+        client = DemoClient(duration=120)
+        b = be.Backend(client, language=Language(env=DE))
+        try:
+            self.assertTrue(pump(lambda: b.connected and b.info and b.activeProfile))
+
+            class Win:
+                def isVisible(self): return False
+                def isActive(self): return False
+                def show(self): pass
+                def hide(self): pass
+                def raise_(self): pass
+                def requestActivate(self): pass
+
+            tray = hwpanel_gui.Tray(Win(), b, hwpanel_gui.load_icon())
+            texts = lambda: [a.text() for a in tray.menu.actions()]  # noqa: E731
+            self.assertEqual(texts()[:3], ["Standard", "Gaming", "KI"])
+            self.assertIn("Profil: Standard", tray.tray.toolTip())
+            b.language.setLanguage("en")
+            # das eingebaute Profil heißt in der Oberfläche "Default", angewendet wird weiter "Standard"
+            self.assertEqual(texts()[:3], ["Default", "Gaming", "KI"])
+            self.assertIn("Open window", texts())
+            self.assertIn("Quit", texts())
+            pump(lambda: False, timeout=1.3)   # nächste Aktualisierung des Tooltips
+            self.assertIn("Profile: Default", tray.tray.toolTip())
+            self.assertIn("Fan", tray.tray.toolTip())
+            default = tray.menu.actions()[0]
+            default.trigger()
+            self.assertTrue(pump(lambda: b.activeProfile == "Standard"))
         finally:
             b.shutdown()
             client.close()

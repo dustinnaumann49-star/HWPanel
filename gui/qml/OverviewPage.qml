@@ -14,17 +14,17 @@ Item {
     function cpuLimitText() {
         var cur = Fmt.get(st, ["cpu", "max_mhz"], null)
         var def = Fmt.get(backend.info, ["limits", "cpu", "max_mhz"], null)
-        return (cur && def && cur < def[1]) ? "Max " + cur + " MHz · " : ""
+        return (cur && def && cur < def[1]) ? qsTr("Max %1 MHz · ").arg(cur) : ""
     }
     function fanText() {
         var f = Fmt.get(backend.status, ["fan"], ({}))
-        if (f.override) return "Sicherung"
-        if (f.error) return "Fehler"
-        return f.mode === "curve" ? "Kurve" : "Auto"
+        if (f.override) return qsTr("Safety")
+        if (f.error) return qsTr("Error")
+        return f.mode === "curve" ? qsTr("Curve") : qsTr("Auto")
     }
     function fanError() {
         var e = Fmt.get(backend.status, ["fan", "error"], "")
-        return e ? "Lüfter: " + e : ""
+        return e ? qsTr("Fan: %1").arg(e) : ""
     }
     function ramText() {
         if (!mods.length) return ""
@@ -40,13 +40,13 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Übersicht"; color: "white"; font.pixelSize: Theme.fsBig; font.weight: Font.DemiBold }
+            Text { text: qsTr("Overview"); color: "white"; font.pixelSize: Theme.fsBig; font.weight: Font.DemiBold }
             Item { Layout.fillWidth: true }
-            Text { text: "PROFIL"; color: Theme.textFaint; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.5; Layout.rightMargin: 6 }
+            Text { text: qsTr("Profile"); color: Theme.textFaint; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.5; font.capitalization: Font.AllUppercase; Layout.rightMargin: 6 }
             Repeater {
                 model: backend.profileNames
                 GlowButton {
-                    text: modelData
+                    text: Fmt.profileLabel(modelData, index === 0)
                     active: modelData === backend.activeProfile
                     onClicked: backend.applyProfile(modelData)
                 }
@@ -77,19 +77,19 @@ Item {
                     GridLayout {
                         Layout.fillWidth: true
                         columns: 2; columnSpacing: 14; rowSpacing: 10
-                        StatTile { Layout.fillWidth: true; label: "Temperatur"; value: Fmt.num(page.g.temp_edge_c); unit: "°C"
-                            sub: "Junction " + Fmt.num(page.g.temp_junction_c) + " · Mem " + Fmt.num(page.g.temp_mem_c) }
-                        StatTile { Layout.fillWidth: true; label: "Leistung"; value: Fmt.num(page.g.power_w, 0); unit: "W"
-                            sub: "Limit " + Fmt.num(page.g.power_cap_w) + " W" }
-                        StatTile { Layout.fillWidth: true; label: "Takt"; value: Fmt.num(page.g.sclk_mhz); unit: "MHz"
-                            sub: "VRAM " + Fmt.num(page.g.mclk_mhz) + " MHz" }
-                        StatTile { Layout.fillWidth: true; label: "Lüfter"; value: Fmt.num(page.g.fan_rpm); unit: "RPM"
+                        StatTile { Layout.fillWidth: true; label: qsTr("Temperature"); value: Fmt.num(page.g.temp_edge_c); unit: "°C"
+                            sub: qsTr("Junction %1 · Mem %2").arg(Fmt.num(page.g.temp_junction_c)).arg(Fmt.num(page.g.temp_mem_c)) }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Power"); value: Fmt.num(page.g.power_w, 0); unit: "W"
+                            sub: qsTr("Limit %1 W").arg(Fmt.num(page.g.power_cap_w)) }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Clock"); value: Fmt.num(page.g.sclk_mhz); unit: "MHz"
+                            sub: qsTr("VRAM %1 MHz").arg(Fmt.num(page.g.mclk_mhz)) }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Fan"); value: Fmt.num(page.g.fan_rpm); unit: "RPM"
                             sub: Fmt.num(page.g.fan_pct) + " % · " + page.fanText()
                             warn: page.fanError() !== ""
                             tip: page.fanError() }
                     }
                     Item { Layout.fillHeight: true }
-                    BarMeter { Layout.fillWidth: true; label: "Auslastung"; valueText: Fmt.num(page.g.busy_pct) + " %"; fraction: (page.g.busy_pct || 0) / 100 }
+                    BarMeter { Layout.fillWidth: true; label: qsTr("Utilization"); valueText: Fmt.num(page.g.busy_pct) + " %"; fraction: (page.g.busy_pct || 0) / 100 }
                     BarMeter { Layout.fillWidth: true; label: "VRAM"
                         valueText: Fmt.gib(page.g.vram_used_mib) + " / " + Fmt.gib(page.g.vram_total_mib) + " GiB"
                         fraction: (page.g.vram_used_mib || 0) / (page.g.vram_total_mib || 1) }
@@ -111,18 +111,18 @@ Item {
                     GridLayout {
                         Layout.fillWidth: true
                         columns: 2; columnSpacing: 14; rowSpacing: 10
-                        StatTile { Layout.fillWidth: true; label: "Temperatur"; value: Fmt.num(page.c.temp_c); unit: "°C" }
-                        StatTile { Layout.fillWidth: true; label: "Leistung"; value: Fmt.num(page.c.power_w, 0); unit: "W" }
-                        StatTile { Layout.fillWidth: true; label: "Takt Ø"; value: Fmt.num(page.c.freq_avg_mhz); unit: "MHz"
-                            sub: "max " + Fmt.num(page.c.freq_max_mhz) + " MHz" }
-                        StatTile { Layout.fillWidth: true; label: "Last"; value: Fmt.num(page.c.load_pct); unit: "%" }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Temperature"); value: Fmt.num(page.c.temp_c); unit: "°C" }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Power"); value: Fmt.num(page.c.power_w, 0); unit: "W" }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Clock Ø"); value: Fmt.num(page.c.freq_avg_mhz); unit: "MHz"
+                            sub: qsTr("max %1 MHz").arg(Fmt.num(page.c.freq_max_mhz)) }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Load"); value: Fmt.num(page.c.load_pct); unit: "%" }
                     }
                     Item { Layout.fillHeight: true }
-                    BarMeter { Layout.fillWidth: true; label: "Auslastung"; valueText: Fmt.num(page.c.load_pct) + " %"; fraction: (page.c.load_pct || 0) / 100 }
+                    BarMeter { Layout.fillWidth: true; label: qsTr("Utilization"); valueText: Fmt.num(page.c.load_pct) + " %"; fraction: (page.c.load_pct || 0) / 100 }
                     Text {
                         Layout.fillWidth: true
-                        text: page.cpuLimitText() + "Turbo " + (Fmt.get(page.st, ["cpu", "turbo"], true) ? "an" : "aus")
-                              + " · EPP " + Fmt.get(page.st, ["cpu", "epp"], "–")
+                        text: page.cpuLimitText() + (Fmt.get(page.st, ["cpu", "turbo"], true) ? qsTr("Turbo on · EPP %1") : qsTr("Turbo off · EPP %1"))
+                              .arg(Fmt.get(page.st, ["cpu", "epp"], "–"))
                         color: Theme.textFaint; font.pixelSize: Theme.fsSmall; elide: Text.ElideRight
                     }
                 }
@@ -143,11 +143,11 @@ Item {
                     GridLayout {
                         Layout.fillWidth: true
                         columns: 2; columnSpacing: 14; rowSpacing: 10
-                        StatTile { Layout.fillWidth: true; label: "Belegt"; value: Fmt.gib(page.r.used_mib); unit: "GiB" }
-                        StatTile { Layout.fillWidth: true; label: "Verfügbar"; value: Fmt.gib(page.r.available_mib); unit: "GiB" }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Used"); value: Fmt.gib(page.r.used_mib); unit: "GiB" }
+                        StatTile { Layout.fillWidth: true; label: qsTr("Available"); value: Fmt.gib(page.r.available_mib); unit: "GiB" }
                     }
                     Item { Layout.fillHeight: true }
-                    BarMeter { Layout.fillWidth: true; label: "Speicher"
+                    BarMeter { Layout.fillWidth: true; label: qsTr("Memory")
                         valueText: Fmt.gib(page.r.used_mib) + " / " + Fmt.gib(page.r.total_mib) + " GiB"
                         fraction: (page.r.used_mib || 0) / (page.r.total_mib || 1) }
                     BarMeter { Layout.fillWidth: true; label: "Swap"

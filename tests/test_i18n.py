@@ -1,5 +1,6 @@
 """Tests für hwpanel_i18n: Sprachwahl, Kataloge, Übersetzen und die echten Kataloge in locales/."""
 
+import ast
 import json
 import re
 import sys
@@ -170,15 +171,98 @@ class TestRealCatalogs(unittest.TestCase):
                     continue
                 self.assertEqual(_tokens(k), _tokens(v), f"{f.name}: {k!r} -> {v!r}")
 
-    def test_no_translation_equals_its_key_without_reason(self):
-        # Gleiche Texte (z. B. "Auto") sind erlaubt, sollen aber bewusst sein: Liste der Ausnahmen
-        allowed = {"Auto"}
+    def test_no_translation_equals_its_key(self):
+        # Ein Eintrag, der dem Quelltext gleicht, ist überflüssig: Fehlt er, erscheint derselbe Text.
         for f in self.files:
             if f.stem == "en":
                 continue
             for k, v in self.read(f).items():
-                if k != "_name" and k == v:
-                    self.assertIn(k, allowed, f"{f.name}: {k!r} ist unübersetzt")
+                if k != "_name":
+                    self.assertNotEqual(k, v, f"{f.name}: {k!r} ist unübersetzt (Eintrag streichen)")
+
+
+GERMAN_LETTERS = re.compile(r"[äöüÄÖÜß]")
+# Quelltexte, die auf Deutsch genauso lauten: Sie brauchen keinen Eintrag in de.json.
+SAME_IN_GERMAN = {
+    "Auto", "Sensor", "Governor", "Turbo Boost", "Energy Performance Preference",
+    "GPU max %1 MHz", "VRAM max %1 MHz", "CPU max %1 MHz", "Power %1 W", "EPP %1", "Governor %1",
+    "Max %1 MHz · ", "max %1 MHz", "max %1", "Limit %1 W", "VRAM %1 MHz", "Junction %1 · Mem %2", "LACT: %1",
+}
+QML_FILES = sorted((ROOT / "gui" / "qml").glob("*.qml")) + [ROOT / "gui" / "qml" / "Fmt.js"]
+PY_FILES = sorted((ROOT / "gui").glob("*.py"))   # Daemon und CLI folgen in späteren Schritten
+QSTR = re.compile(r'\bqsTr\(\s*"((?:[^"\\]|\\.)*)"')
+
+
+def qml_texts():
+    """Alle Quelltexte von qsTr() in QML und JS: Text -> Dateien."""
+    out = {}
+    for f in QML_FILES:
+        for m in QSTR.finditer(f.read_text(encoding="utf-8")):
+            out.setdefault(json.loads('"%s"' % m.group(1)), []).append(f.name)
+    return out
+
+
+def _tr_calls(tree):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) \
+                and isinstance(node.args[0].value, str):
+            fn = node.func
+            if (isinstance(fn, ast.Name) and fn.id == "tr") or (isinstance(fn, ast.Attribute) and fn.attr == "tr"):
+                yield node.args[0]
+
+
+def python_texts(files=None):
+    """Alle Quelltexte von tr(...) in Python-Dateien: Text -> Dateien."""
+    out = {}
+    for f in files or PY_FILES + [ROOT / "hwpanelctl.py", ROOT / "hwpaneld.py"]:
+        for arg in _tr_calls(ast.parse(f.read_text(encoding="utf-8"))):
+            out.setdefault(arg.value, []).append(f.name)
+    return out
+
+
+class TestCatalogCoverage(unittest.TestCase):
+    """Die deutschen Texte dürfen nicht im Quelltext stehen, und der Katalog muss genau die benutzten Texte enthalten."""
+
+    @classmethod
+    def setUpClass(cls):
+        data = json.loads((ROOT / "locales" / "de.json").read_text(encoding="utf-8"))
+        cls.de = {k: v for k, v in data.items() if k != "_name"}
+        cls.used = {**qml_texts(), **python_texts()}
+
+    def test_every_source_text_has_a_german_translation(self):
+        missing = sorted(t for t in self.used if t not in self.de and t not in SAME_IN_GERMAN)
+        self.assertEqual(missing, [], "fehlt in locales/de.json (oder gehört in SAME_IN_GERMAN)")
+
+    def test_same_in_german_list_is_current(self):
+        self.assertEqual(sorted(t for t in SAME_IN_GERMAN if t not in self.used), [],
+                         "kommt im Quelltext nicht mehr vor")
+        self.assertEqual(sorted(t for t in SAME_IN_GERMAN if t in self.de), [],
+                         "steht in der Liste und im Katalog: eines davon streichen")
+
+    def test_catalog_has_no_unused_entries(self):
+        unused = sorted(k for k in self.de if k not in self.used)
+        self.assertEqual(unused, [], "kommt im Quelltext nicht mehr vor")
+
+    def test_no_german_text_left_in_qml_outside_qstr(self):
+        for f in QML_FILES:
+            code = QSTR.sub('qsTr("")', f.read_text(encoding="utf-8"))
+            code = re.sub(r"//.*", "", code)
+            for lit in re.findall(r'"((?:[^"\\]|\\.)*)"', code):
+                self.assertIsNone(GERMAN_LETTERS.search(lit), f"{f.name}: {lit!r} gehört in qsTr()")
+
+    def test_no_german_text_left_in_gui_python_outside_tr(self):
+        allowed_prefix = "[Desktop Entry]"   # Vorlage der Autostart-Datei enthält absichtlich Comment[de]
+        for f in PY_FILES:
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+            in_tr = {id(a) for a in _tr_calls(tree)}
+            docstrings = {id(n.value) for n in ast.walk(tree)
+                          if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                        and id(node) not in in_tr and id(node) not in docstrings \
+                        and not node.value.startswith(allowed_prefix):
+                    self.assertIsNone(GERMAN_LETTERS.search(node.value),
+                                      f"{f.name}:{node.lineno}: {node.value!r} gehört in tr()")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ Alle Obergrenzen sind die Treiber-Standardwerte, die beim ersten Start des Daemo
 - `gui/`: Fenster und Tray-Icon (PySide6/QML), gleiche Socket-Schnittstelle wie die CLI.
 - Socket: `/run/hwpanel/hwpanel.sock` (JSON pro Zeile), Daten: `/var/lib/hwpanel/`.
 
-Aktuell sind GUI und CLI-Ausgaben auf Deutsch. Eine englische Oberfläche ist geplant.
+Die GUI gibt es auf Deutsch und Englisch, sie folgt der Systemsprache. Die Ausgaben der Kommandozeile und die Meldungen des Daemons (Fehler, Ereignisse im Verlauf) sind noch nicht übersetzt und erscheinen auf Deutsch.
 
 ## Voraussetzungen
 
@@ -50,6 +50,7 @@ hwpanel-gui --minimized               # nur Tray
 - Diagramme und Karten werden ohne Weichzeichner gezeichnet, versteckte Seiten zeichnen nicht mit. Das hält Start und Seitenwechsel flüssig.
 - Verlauf: Der Daemon hält die letzte Stunde im Speicher, auch wenn die GUI geschlossen ist. Gestrichelte Linien markieren Profilwechsel und manuelle Änderungen. Mit der Maus über ein Diagramm fahren zeigt die Werte.
 - Mit der Maus über eine Einstellung fahren (das "?" neben einer Beschriftung oder eine Option wie ein EPP-Wert) zeigt eine kurze Erklärung.
+- Sprache: Ein deutsches System zeigt Deutsch, alles andere Englisch. Die Knöpfe *Auto / DE / EN* unten in der Seitenleiste schalten sofort um; die Wahl wird in `~/.config/hwpanel/gui.json` gespeichert. Für die CLI gibt es `--lang KÜRZEL` oder `HWPANEL_LANG`.
 - Tray: Linksklick öffnet/versteckt das Fenster, das Menü wechselt das Profil. Fenster schließen versteckt es nur, Beenden im Menü oder in der Seitenleiste beendet die GUI.
 - Autostart der GUI: Schalter "Beim Login starten" in der Seitenleiste (legt `~/.config/autostart/hwpanel-gui.desktop` an).
 - Ohne Tray-Unterstützung der Desktopumgebung (z. B. GNOME ohne AppIndicator-Erweiterung) beendet das Schließen des Fensters die GUI.
@@ -81,7 +82,7 @@ Hinweis zum VRAM-Takt: `--mclk` verwendet den sysfs-Wert (z. B. 1124). LACT zeig
 
 Ein Profil legt den vollständigen Zustand fest: Alles, was nicht aufgeführt ist, wird auf Standard gesetzt.
 
-- `Standard` (eingebaut): alles zurück auf Standard.
+- `Standard` (eingebaut; die englische GUI zeigt es als "Default"): alles zurück auf Standard.
 - `Gaming`: GPU und CPU auf Standardtakt, CPU-EPP `performance`.
 - `KI`: GPU-Maximaltakt 2300 MHz, Rest Standard.
 
@@ -141,6 +142,10 @@ QT_QPA_PLATFORM=offscreen python3 -m unittest tests.test_gui_backend tests.test_
 python3 tests/render_gui.py /tmp/shots                # GUI mit Demo-Daten als PNG rendern
 python3 tests/bench_gui.py                            # Zeichenzeiten (Start, Seitenwechsel, Updates) messen
 ```
+
+## Übersetzungen
+
+Die Quelltexte sind Englisch. Jede Sprache ist eine einfache JSON-Datei `locales/<kürzel>.json`, die den englischen Text auf die Übersetzung abbildet; der Schlüssel `_name` ist der Name der Sprache in ihrer eigenen Sprache. Es gibt keinen Kompilierschritt: Datei anlegen, und die Sprache erscheint in der GUI. Fehlende Einträge fallen auf Englisch zurück. `tests/test_i18n.py` prüft, dass jeder Text im Quellcode übersetzt ist und Platzhalter und Markup übereinstimmen.
 
 ## Lizenz
 

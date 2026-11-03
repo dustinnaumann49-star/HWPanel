@@ -18,12 +18,12 @@ Item {
             Layout.fillWidth: true
             ColumnLayout {
                 spacing: 2
-                Text { text: "Profile"; color: "white"; font.pixelSize: Theme.fsBig; font.weight: Font.DemiBold }
-                Text { text: "Ein Profil legt den vollständigen Zustand fest: Alles, was nicht aufgeführt ist, wird auf Standard gesetzt."
+                Text { text: qsTr("Profiles"); color: "white"; font.pixelSize: Theme.fsBig; font.weight: Font.DemiBold }
+                Text { text: qsTr("A profile defines the complete state: everything that is not listed is set to default.")
                        color: Theme.textFaint; font.pixelSize: Theme.fsSmall }
             }
             Item { Layout.fillWidth: true }
-            GlowButton { primary: true; text: "+  Neues Profil"; onClicked: page.requestNew() }
+            GlowButton { primary: true; text: qsTr("+  New profile"); onClicked: page.requestNew() }
         }
 
         Flickable {
@@ -63,17 +63,17 @@ Item {
                             anchors.fill: parent
                             spacing: 8
                             RowLayout {
-                                Text { text: modelData; color: "white"; font.pixelSize: Theme.fsBig - 4; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { text: Fmt.profileLabel(modelData, pc.builtin); color: "white"; font.pixelSize: Theme.fsBig - 4; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Rectangle {
                                     visible: pc.active
                                     implicitWidth: badge.implicitWidth + 18; implicitHeight: 22; radius: 11
                                     color: Theme.redDeep; border.color: Theme.redLight; border.width: 1
-                                    Text { id: badge; anchors.centerIn: parent; text: "AKTIV"; color: "white"; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.5; font.weight: Font.Bold }
+                                    Text { id: badge; anchors.centerIn: parent; text: qsTr("Active"); color: "white"; font.pixelSize: Theme.fsTiny; font.letterSpacing: 1.5; font.weight: Font.Bold; font.capitalization: Font.AllUppercase }
                                 }
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: pc.builtin ? "Alles auf Treiberstandard" : Fmt.describeGpu(pc.prof)
+                                text: pc.builtin ? qsTr("Everything at driver default") : Fmt.describeGpu(pc.prof)
                                 color: Theme.textDim; font.pixelSize: Theme.fsSmall + 1; wrapMode: Text.WordWrap
                             }
                             Text {
@@ -84,14 +84,14 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: pc.builtin ? "Lüfter: Automatik (leise)" : Fmt.describeFan(pc.prof)
+                                text: pc.builtin ? qsTr("Fan: automatic (quiet)") : Fmt.describeFan(pc.prof)
                                 color: Theme.textDim; font.pixelSize: Theme.fsSmall + 1; wrapMode: Text.WordWrap
                             }
                             Item { Layout.fillHeight: true }
                             RowLayout {
                                 Layout.fillWidth: true
                                 visible: !pc.builtin
-                                Text { text: "Beim Systemstart anwenden"; color: Theme.textFaint; font.pixelSize: Theme.fsSmall }
+                                Text { text: qsTr("Apply at system start"); color: Theme.textFaint; font.pixelSize: Theme.fsSmall }
                                 Item { Layout.fillWidth: true }
                                 GlowSwitch {
                                     scale: 0.8
@@ -101,13 +101,13 @@ Item {
                             }
                             RowLayout {
                                 spacing: 8
-                                GlowButton { primary: !pc.active; active: pc.active; compact: true; text: pc.active ? "Erneut anwenden" : "Anwenden"; onClicked: backend.applyProfile(modelData) }
-                                GlowButton { visible: !pc.builtin; compact: true; text: "Bearbeiten"; onClicked: page.requestEdit(modelData) }
+                                GlowButton { primary: !pc.active; active: pc.active; compact: true; text: pc.active ? qsTr("Apply again") : qsTr("Apply"); onClicked: backend.applyProfile(modelData) }
+                                GlowButton { visible: !pc.builtin; compact: true; text: qsTr("Edit"); onClicked: page.requestEdit(modelData) }
                                 Item { Layout.fillWidth: true }
                                 GlowButton {
                                     visible: !pc.builtin
                                     compact: true
-                                    text: pc.confirm ? "Wirklich löschen?" : "Löschen"
+                                    text: pc.confirm ? qsTr("Really delete?") : qsTr("Delete")
                                     textColor: pc.confirm ? Theme.redError : Theme.text
                                     onClicked: {
                                         if (pc.confirm) { backend.deleteProfile(modelData); pc.confirm = false }

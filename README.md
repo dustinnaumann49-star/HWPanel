@@ -10,7 +10,7 @@ all upper limits are the driver defaults, read when the daemon starts for the fi
 - `gui/`: window and tray icon (PySide6/QML), same socket interface as the CLI.
 - Socket: `/run/hwpanel/hwpanel.sock` (one JSON object per line), data: `/var/lib/hwpanel/`.
 
-The GUI and the CLI output are currently in German. An English interface is planned.
+The GUI is available in English and German and follows the system language. The command-line output and the daemon's messages (errors, history events) are not translated yet and appear in German.
 
 ## Requirements
 
@@ -46,12 +46,13 @@ hwpanel-gui                           # window + tray icon
 hwpanel-gui --minimized               # tray only
 ```
 
-- Pages (labels are currently German): Overview (*Übersicht*: live GPU/CPU/RAM, temperature and power chart), History (*Verlauf*: temperature, power, load incl. fan %, clock over 1 min to 1 h), Profiles (*Profile*: apply, create, edit, delete, "apply at system start"), Manual (*Manuell*: tabs "Takt & CPU" = clocks & CPU and "Lüfter" = fan).
+- Pages: Overview (live GPU/CPU/RAM, temperature and power chart), History (temperature, power, load incl. fan %, clock over 1 min to 1 h), Profiles (apply, create, edit, delete, "Apply at system start"), Manual (tabs "Clocks & CPU" and "Fan").
 - Charts and cards are drawn without blur, and hidden pages do not draw. This keeps startup and page switches smooth.
 - History: the daemon keeps the last hour in memory, even when the GUI is closed. Dashed lines mark profile changes and manual changes. Hovering over a chart shows the values.
 - Hovering over a setting (the "?" next to a label, or an option such as an EPP value) shows a short explanation.
-- Tray: a left click opens/hides the window, the menu switches the profile. Closing the window only hides it; "Beenden" (quit) in the menu or in the sidebar quits the GUI.
-- GUI autostart: the switch "Beim Login starten" (start at login) in the sidebar creates `~/.config/autostart/hwpanel-gui.desktop`.
+- Language: a German system shows German, everything else English. The buttons *Auto / DE / EN* at the bottom of the sidebar switch it immediately; the choice is saved in `~/.config/hwpanel/gui.json`. For the CLI use `--lang CODE` or `HWPANEL_LANG`.
+- Tray: a left click opens/hides the window, the menu switches the profile. Closing the window only hides it; "Quit" in the menu or in the sidebar quits the GUI.
+- GUI autostart: the switch "Start at login" in the sidebar creates `~/.config/autostart/hwpanel-gui.desktop`.
 - Without tray support in the desktop environment (e.g. GNOME without the AppIndicator extension) closing the window quits the GUI.
 - The daemon runs independently of the GUI. Profiles and settings apply even when the GUI is closed.
 
@@ -81,12 +82,12 @@ Note on the VRAM clock: `--mclk` takes the sysfs value (e.g. 1124). LACT shows d
 
 A profile defines the complete state: everything that is not listed is set to the default.
 
-- `Standard` (built in, German for "default"): everything back to default.
+- `Standard` (built in; the English GUI shows it as "Default"): everything back to default.
 - `Gaming`: GPU and CPU at default clocks, CPU EPP `performance`.
 - `KI` (German for "AI"): GPU maximum clock 2300 MHz, the rest default.
 
 Profiles are stored in `/var/lib/hwpanel/profiles.json`. After suspend/resume the last applied values are applied again.
-The shipped profiles `Gaming` and `KI` contain no fan curve (automatic). Create your own curves in the GUI: edit a profile, tab "Lüfter" (fan).
+The shipped profiles `Gaming` and `KI` contain no fan curve (automatic). Create your own curves in the GUI: edit a profile, tab "Fan".
 
 ## Fan control
 
@@ -96,7 +97,7 @@ The shipped profiles `Gaming` and `KI` contain no fan curve (automatic). Create 
 - Behavior: when the target rises it is written immediately. When it falls, it takes 5 s and a difference of at least 2 % (prevents hunting).
 - Protection: the curve must deliver at least 30 % at 60 °C and at least 50 % at 80 °C, otherwise it is rejected. From 100 °C junction the fan runs at 100 % (released below 95 °C), regardless of the curve.
 - On failure: if the sensor cannot be read or a write fails, the fan goes to automatic, with retry. Daemon exit, crash or hang (systemd watchdog, 20 s): the fan returns to automatic (`ExecStopPost`). If `pwm1_enable` is reset from outside (e.g. after standby), the daemon sets the curve again.
-- The fan configuration is not kept across a daemon restart. After boot the fan is on automatic until a profile is applied. For a fixed start use the switch "Beim Systemstart anwenden" (apply at system start) on the profile or `hwpanelctl autostart NAME`.
+- The fan configuration is not kept across a daemon restart. After boot the fan is on automatic until a profile is applied. For a fixed start use the switch "Apply at system start" on the profile or `hwpanelctl autostart NAME`.
 - `lactd` must stay disabled, otherwise both write to `pwm1_enable`/`pwm1`.
 - Adjustable in `/var/lib/hwpanel/config.json` (after a change: `sudo systemctl restart hwpanel`): `fan_safety_junction_c` (100), `fan_min_rules` (`[[60, 30], [80, 50]]`), `fan_spindown_s` (5), `fan_threshold_pct` (2).
 - 0 % is allowed in the cool range (the fan stops). The protection rules only apply from 60 °C and 80 °C.
@@ -141,6 +142,10 @@ QT_QPA_PLATFORM=offscreen python3 -m unittest tests.test_gui_backend tests.test_
 python3 tests/render_gui.py /tmp/shots                # render the GUI with demo data as PNG
 python3 tests/bench_gui.py                            # measure drawing times (startup, page switches, updates)
 ```
+
+## Translations
+
+The source texts are English. Each language is a plain JSON file `locales/<code>.json` that maps the English text to its translation; the key `_name` is the language's own name. There is no build step: add a file and the language appears in the GUI. Missing entries fall back to English. `tests/test_i18n.py` checks that every text in the source code is translated and that placeholders and markup match.
 
 ## License
 

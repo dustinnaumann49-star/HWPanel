@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # hwpanel_i18n.py und locales/ liegen im Hauptordner
 from backend import SOCKET_PATH, Backend, DaemonClient  # noqa: E402
+from hwpanel_i18n import tr  # noqa: E402
 from language import CONFIG_FILE, Language  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -53,6 +54,7 @@ class Tray:
         backend.infoChanged.connect(self.rebuild)
         backend.statusChanged.connect(self.refresh)
         backend.connectedChanged.connect(self.refresh)
+        backend.language.languageChanged.connect(self.rebuild)
         self.rebuild()
         self.tray.show()
 
@@ -71,40 +73,46 @@ class Tray:
         self.window.raise_()
         self.window.requestActivate()
 
+    def _signature(self):
+        return (tuple(self.backend.profileNames), self.backend.activeProfile, self.backend.language.code)
+
     def rebuild(self):
-        self._sig = (tuple(self.backend.profileNames), self.backend.activeProfile)
+        self._sig = self._signature()
         self.menu.clear()
         group = QActionGroup(self.menu)
         group.setExclusive(True)
-        for name in self.backend.profileNames:
-            act = QAction(name, self.menu)
+        for i, name in enumerate(self.backend.profileNames):
+            act = QAction(tr("Default") if i == 0 else name, self.menu)   # das eingebaute Profil heißt intern "Standard"
             act.setCheckable(True)
             act.setChecked(name == self.backend.activeProfile)
             act.triggered.connect(lambda _=False, n=name: self.backend.applyProfile(n))
             group.addAction(act)
             self.menu.addAction(act)
         self.menu.addSeparator()
-        self.menu.addAction("Fenster öffnen", self.show_window)
-        self.menu.addAction("Beenden", self.backend.quit)
+        self.menu.addAction(tr("Open window"), self.show_window)
+        self.menu.addAction(tr("Quit"), self.backend.quit)
         self.refresh()
 
     def refresh(self):
-        sig = (tuple(self.backend.profileNames), self.backend.activeProfile)
-        if sig != self._sig:
+        if self._signature() != self._sig:
             self.rebuild()
             return
         st = self.backend.status or {}
         if not self.backend.connected:
-            self.tray.setToolTip("hwpanel: Daemon nicht erreichbar")
+            self.tray.setToolTip(tr("hwpanel: daemon not reachable"))
             return
         g, c = st.get("gpu") or {}, st.get("cpu") or {}
 
         def f(v, unit):
             return "–" if v is None else f"{v:g}{unit}"
-        self.tray.setToolTip(
-            f"hwpanel · Profil: {self.backend.activeProfile or 'manuell'}\n"
-            f"GPU {f(g.get('temp_edge_c'), ' °C')} · {f(g.get('power_w'), ' W')} · Lüfter {f(g.get('fan_pct'), ' %')}\n"
-            f"CPU {f(c.get('temp_c'), ' °C')} · {f(c.get('power_w'), ' W')}")
+        profile = self.backend.activeProfile
+        if profile and profile == (self.backend.profileNames or [None])[0]:
+            profile = tr("Default")
+        self.tray.setToolTip(tr(
+            "hwpanel · Profile: {profile}\nGPU {gpu_temp} · {gpu_power} · Fan {fan}\nCPU {cpu_temp} · {cpu_power}",
+            profile=profile or tr("manual"),
+            gpu_temp=f(g.get("temp_edge_c"), " °C"), gpu_power=f(g.get("power_w"), " W"), fan=f(g.get("fan_pct"), " %"),
+            cpu_temp=f(c.get("temp_c"), " °C"), cpu_power=f(c.get("power_w"), " W")))
 
 
 def notify_running_instance(name):
@@ -121,8 +129,8 @@ def notify_running_instance(name):
 
 def main():
     ap = argparse.ArgumentParser(description="hwpanel GUI")
-    ap.add_argument("--minimized", action="store_true", help="nur im Tray starten")
-    ap.add_argument("--page", type=int, default=0, help="Startseite (0 Übersicht, 1 Verlauf, 2 Profile, 3 Manuell)")
+    ap.add_argument("--minimized", action="store_true", help="start in the tray only")
+    ap.add_argument("--page", type=int, default=0, help="start page (0 overview, 1 history, 2 profiles, 3 manual)")
     ap.add_argument("--socket", default=SOCKET_PATH)
     args, qt_args = ap.parse_known_args()
 

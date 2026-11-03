@@ -11,6 +11,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
 HERE = Path(__file__).resolve().parent
 QML_DIR = HERE.parent / "gui" / "qml"
+sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parent / "gui"))
 
 try:
     from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPoint, QPointF, Qt, QUrl, Q_ARG
@@ -22,6 +24,10 @@ try:
     HAVE_QT = True
 except ImportError:  # pragma: no cover
     HAVE_QT = False
+
+if HAVE_QT:   # Fehler in den Projektmodulen sollen auffallen und nicht als "übersprungen" enden
+    import hwpanel_i18n as i18n
+    from language import Language
 
 WRAPPER = """
 import QtQuick
@@ -234,14 +240,23 @@ class HintTests(unittest.TestCase):
         cls.engine.load(QUrl.fromLocalFile(str(path)))
         assert cls.engine.rootObjects(), "Wrapper-QML konnte nicht geladen werden"
         cls.win = cls.engine.rootObjects()[0]
+        cls.language = Language(env={"LANG": "de_DE.UTF-8"})   # die Erwartungen unten sind deutsch
         pump(0.5)
 
     @classmethod
     def tearDownClass(cls):
         cls.win.close()
+        cls.language.close()
+        i18n.set_language("en")
         cls.tmp.cleanup()
 
+    def switch_language(self, code):
+        self.language.setLanguage(code)
+        self.language.retranslate(self.win)   # wie Main.qml beim Sprachwechsel
+        pump(0.2)
+
     def setUp(self):
+        self.switch_language("de")
         QTest.mouseMove(self.win, QPoint(2, 2))
         pump(0.1)
 
@@ -287,6 +302,16 @@ class HintTests(unittest.TestCase):
         hints = self.hints("sensor")
         self.assertEqual(set(hints), {"edge", "junction", "mem"})
         self.assertTrue(all(hints.values()))
+
+    def test_hints_follow_the_language_live(self):
+        btn = self.buttons("epp")["performance"]
+        self.assertIn("Höchste Leistung", btn.property("hint"))
+        self.switch_language("en")
+        self.assertIn("Highest performance", btn.property("hint"))
+        self.assertIn("Highest performance", self.tips(btn)[0].property("text"))
+        self.assertIn("lowest clock", self.buttons("gov_acpi")["powersave"].property("hint").lower())
+        self.switch_language("de")
+        self.assertIn("Höchste Leistung", btn.property("hint"))
 
     def test_unknown_option_has_no_hint(self):
         self.assertEqual(self.hints("unknown"), {"gibtsnicht": ""})

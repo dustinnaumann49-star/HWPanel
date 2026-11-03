@@ -44,13 +44,13 @@ Popup {
         spacing: 14
 
         Text {
-            text: dlg.editName ? "Profil bearbeiten" : "Neues Profil"
+            text: dlg.editName ? qsTr("Edit profile") : qsTr("New profile")
             color: "white"; font.pixelSize: Theme.fsBig; font.weight: Font.DemiBold
         }
         TextField {
             id: nameField
             Layout.fillWidth: true
-            placeholderText: "Profilname (z. B. Gaming, KI, Desktop)"
+            placeholderText: qsTr("Profile name (e.g. Gaming, Quiet, Desktop)")
             placeholderTextColor: Theme.textFaint
             color: "white"
             font.pixelSize: Theme.fsMed
@@ -73,13 +73,13 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            GlowButton { compact: true; text: "Takt & CPU"; active: dlg.tab === 0; onClicked: dlg.tab = 0 }
-            GlowButton { compact: true; text: "Lüfter"; active: dlg.tab === 1; onClicked: dlg.tab = 1 }
+            GlowButton { compact: true; text: qsTr("Clocks & CPU"); active: dlg.tab === 0; onClicked: dlg.tab = 0 }
+            GlowButton { compact: true; text: qsTr("Fan"); active: dlg.tab === 1; onClicked: dlg.tab = 1 }
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignRight
-                text: dlg.tab === 0 ? "Nur Werte unter dem Standard werden gespeichert, alles andere wird auf Standard gesetzt."
-                                    : "Ohne eigene Kurve regelt die Treiberautomatik den Lüfter."
+                text: dlg.tab === 0 ? qsTr("Only values below the default are saved, everything else is set to default.")
+                                    : qsTr("Without a custom curve the driver automatic controls the fan.")
                 color: Theme.textFaint; font.pixelSize: Theme.fsTiny
                 elide: Text.ElideRight
             }
@@ -95,10 +95,10 @@ Popup {
             Layout.fillWidth: true
             spacing: 12
             Item { Layout.fillWidth: true }
-            GlowButton { text: "Abbrechen"; onClicked: dlg.close() }
+            GlowButton { text: qsTr("Cancel"); onClicked: dlg.close() }
             GlowButton {
                 primary: true
-                text: "Speichern"
+                text: qsTr("Save")
                 enabled: nameField.text.trim().length > 0 && dlg.nameError === "" && fanForm.ruleError === ""
                 onClicked: {
                     backend.saveProfile(nameField.text.trim(), form.gpuValues(false), form.cpuValues(false),

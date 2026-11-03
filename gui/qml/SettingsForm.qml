@@ -86,29 +86,29 @@ Item {
             Text { text: "GPU"; color: Theme.redSoft; font.pixelSize: Theme.fsMed; font.weight: Font.Bold; font.letterSpacing: 2 }
             GlowSlider {
                 Layout.fillWidth: true
-                title: "GPU-Maximaltakt"; unit: "MHz"; stepSize: 10
-                hint: "<b>Obergrenze für den GPU-Takt.</b> Niedriger heißt weniger Leistung, Verbrauch und Wärme. Über den Standard hinaus geht es nicht, hwpanel übertaktet nie."
+                title: qsTr("GPU max clock"); unit: "MHz"; stepSize: 10
+                hint: qsTr("<b>Upper limit for the GPU clock.</b> Lower means less performance, power draw and heat. Above the default is not possible, hwpanel never overclocks.")
                 from: f.lo("gpu", "sclk_max"); to: f.hi("gpu", "sclk_max"); value: f.sclk
                 enabled: f.limit("gpu", "sclk_max") !== null
-                note: f.sclk >= f.hi("gpu", "sclk_max") ? "Standard" : ""
+                note: f.sclk >= f.hi("gpu", "sclk_max") ? qsTr("Default") : ""
                 onMoved: (v) => f.sclk = v
             }
             GlowSlider {
                 Layout.fillWidth: true
-                title: "VRAM-Maximaltakt"; unit: "MHz"; stepSize: 1
-                hint: "<b>Obergrenze für den Grafikspeicher-Takt.</b> Niedriger spart Strom, kann aber Spiele ausbremsen. In LACT steht der doppelte Wert."
+                title: qsTr("VRAM max clock"); unit: "MHz"; stepSize: 1
+                hint: qsTr("<b>Upper limit for the graphics memory clock.</b> Lower saves power but can slow games down. LACT shows double the value.")
                 from: f.lo("gpu", "mclk_max"); to: f.hi("gpu", "mclk_max"); value: f.mclk
                 enabled: f.limit("gpu", "mclk_max") !== null
-                note: f.mclk >= f.hi("gpu", "mclk_max") ? "Standard" : "LACT: " + Math.round(f.mclk * 2)
+                note: f.mclk >= f.hi("gpu", "mclk_max") ? qsTr("Default") : qsTr("LACT: %1").arg(Math.round(f.mclk * 2))
                 onMoved: (v) => f.mclk = v
             }
             GlowSlider {
                 Layout.fillWidth: true
-                title: "Power-Limit"; unit: "W"; stepSize: 1
-                hint: "<b>Maximale Leistungsaufnahme der Grafikkarte in Watt.</b> Weniger bedeutet leiser, kühler und etwas langsamer."
+                title: qsTr("Power limit"); unit: "W"; stepSize: 1
+                hint: qsTr("<b>Maximum power draw of the graphics card in watts.</b> Less means quieter, cooler and slightly slower.")
                 from: f.lo("gpu", "power_cap_w"); to: f.hi("gpu", "power_cap_w"); value: f.power
                 enabled: f.limit("gpu", "power_cap_w") !== null
-                note: f.power >= f.hi("gpu", "power_cap_w") ? "Standard" : ""
+                note: f.power >= f.hi("gpu", "power_cap_w") ? qsTr("Default") : ""
                 onMoved: (v) => f.power = v
             }
         }
@@ -119,11 +119,11 @@ Item {
             Text { text: "CPU"; color: Theme.redSoft; font.pixelSize: Theme.fsMed; font.weight: Font.Bold; font.letterSpacing: 2 }
             GlowSlider {
                 Layout.fillWidth: true
-                title: "CPU-Maximaltakt"; unit: "MHz"; stepSize: 100
-                hint: "<b>Obergrenze für den CPU-Takt.</b> Niedriger heißt weniger Leistung, Verbrauch und Wärme. Über den Standard hinaus geht es nicht."
+                title: qsTr("CPU max clock"); unit: "MHz"; stepSize: 100
+                hint: qsTr("<b>Upper limit for the CPU clock.</b> Lower means less performance, power draw and heat. Above the default is not possible.")
                 from: f.lo("cpu", "max_mhz"); to: f.hi("cpu", "max_mhz"); value: f.maxMhz
                 enabled: f.limit("cpu", "max_mhz") !== null
-                note: f.maxMhz >= f.hi("cpu", "max_mhz") ? "Standard" : ""
+                note: f.maxMhz >= f.hi("cpu", "max_mhz") ? qsTr("Default") : ""
                 onMoved: (v) => f.maxMhz = v
             }
             RowLayout {
@@ -131,15 +131,15 @@ Item {
                 enabled: Fmt.get(f.cpuInfo, ["turbo_supported"], false)
                 opacity: enabled ? 1 : 0.4
                 HelpLabel {
-                    text: "Turbo Boost"
-                    hint: "<b>Turbo Boost.</b> Erlaubt der CPU, kurzzeitig über ihren Basistakt zu takten. Aus: leiser und kühler, aber spürbar weniger Leistung unter Last."
+                    text: qsTr("Turbo Boost")
+                    hint: qsTr("<b>Turbo Boost.</b> Allows the CPU to briefly clock above its base clock. Off: quieter and cooler, but noticeably less performance under load.")
                 }
                 Item { Layout.fillWidth: true }
                 GlowSwitch { checked: f.turbo; onToggled: (v) => f.turbo = v }
             }
             HelpLabel {
-                text: "Energy Performance Preference"
-                hint: "<b>Energie-Vorliebe (EPP).</b> Legt fest, ob die CPU eher auf Leistung oder auf Sparsamkeit setzt. Wirkt nur mit dem Governor „powersave“. Fahre über die Optionen für Details."
+                text: qsTr("Energy Performance Preference")
+                hint: qsTr("<b>Energy preference (EPP).</b> Decides whether the CPU favors performance or efficiency. Only works with the governor “powersave”. Hover over the options for details.")
             }
             ChoiceRow {
                 Layout.fillWidth: true
@@ -149,8 +149,8 @@ Item {
                 onPicked: (v) => f.epp = v
             }
             HelpLabel {
-                text: "Governor"
-                hint: "<b>Takt-Strategie.</b> Bestimmt, wie die CPU ihren Takt wählt. Bei Intel und AMD ist meist „powersave“ mit passender Energie-Vorliebe richtig, bei anderen Treibern „schedutil“. Fahre über die Optionen für Details."
+                text: qsTr("Governor")
+                hint: qsTr("<b>Clock strategy.</b> Decides how the CPU chooses its clock. On Intel and AMD “powersave” with a suitable energy preference is usually right, with other drivers “schedutil”. Hover over the options for details.")
             }
             ChoiceRow {
                 Layout.fillWidth: true

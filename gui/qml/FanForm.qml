@@ -54,10 +54,10 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 14
-            Text { text: "LÜFTER"; color: Theme.redSoft; font.pixelSize: Theme.fsMed; font.weight: Font.Bold; font.letterSpacing: 2 }
+            Text { text: qsTr("Fan"); color: Theme.redSoft; font.pixelSize: Theme.fsMed; font.weight: Font.Bold; font.letterSpacing: 2; font.capitalization: Font.AllUppercase }
             Item { Layout.fillWidth: true }
             Text {
-                text: f.curveOn ? "Eigene Kurve" : "Automatik (Treiber)"
+                text: f.curveOn ? qsTr("Custom curve") : qsTr("Automatic (driver)")
                 color: f.curveOn ? "white" : Theme.textDim
                 font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
             }
@@ -71,7 +71,7 @@ Item {
         Text {
             Layout.fillWidth: true
             visible: !f.supported
-            text: "Lüftersteuerung ist auf diesem System nicht verfügbar (pwm1 fehlt)."
+            text: qsTr("Fan control is not available on this system (pwm1 is missing).")
             color: Theme.redError; font.pixelSize: Theme.fsSmall; wrapMode: Text.WordWrap
         }
 
@@ -80,8 +80,8 @@ Item {
             visible: f.supported
             spacing: 12
             HelpLabel {
-                text: "Sensor"
-                hint: "<b>Welche Temperatur die Lüfterkurve nutzt.</b> Fahre über die Optionen für Details."
+                text: qsTr("Sensor")
+                hint: qsTr("<b>Which temperature the fan curve uses.</b> Hover over the options for details.")
             }
             ChoiceRow {
                 enabled: f.curveOn
@@ -93,12 +93,12 @@ Item {
             }
             Item { Layout.fillWidth: true }
             GlowButton {
-                compact: true; text: "Punkt entfernen"
+                compact: true; text: qsTr("Remove point")
                 enabled: f.curveOn && editor.selected >= 0 && f.pts.length > editor.minPoints
                 onClicked: editor.removeSelected()
             }
             GlowButton {
-                compact: true; text: "Startkurve"
+                compact: true; text: qsTr("Starting curve")
                 enabled: f.curveOn
                 onClicked: { f.pts = f.copy(f.example); editor.selected = -1 }
             }
@@ -122,8 +122,8 @@ Item {
             Layout.fillWidth: true
             visible: f.supported
             text: f.ruleError !== "" ? f.ruleError
-                  : (f.curveOn ? "Punkte ziehen, Doppelklick fügt einen hinzu, Entf löscht den gewählten Punkt. Ab " + f.safetyC + " °C Junction läuft der Lüfter immer mit 100 %."
-                               : "Der Treiber regelt den Lüfter selbst (leise, im Leerlauf meist aus).")
+                  : (f.curveOn ? qsTr("Drag points, double-click adds one, Del removes the selected point. From %1 °C junction the fan always runs at 100 %.").arg(f.safetyC)
+                               : qsTr("The driver controls the fan itself (quiet, usually off when idle)."))
             color: f.ruleError !== "" ? Theme.redError : Theme.textFaint
             font.pixelSize: Theme.fsSmall; wrapMode: Text.WordWrap
         }

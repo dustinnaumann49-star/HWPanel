@@ -38,6 +38,9 @@ Item {
 
     // Versteckte Seiten werden nicht gezeichnet; beim Einblenden wird einmal nachgeholt.
     function repaint() { if (visible) cv.requestPaint() }
+    // direkt auf die Leinwand gezeichneter Text: Änderung der Sprache löst ein Neuzeichnen aus
+    readonly property string waitText: qsTr("Waiting for measurements …")
+    onWaitTextChanged: cv.requestPaint()
     onHistChanged: repaint()
     onSeriesChanged: repaint()
     onWindowSecondsChanged: repaint()
@@ -101,7 +104,7 @@ Item {
                     color: "white"; font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
-                    text: "max " + root.fmtVal(root.stat(modelData.key).max)
+                    text: qsTr("max %1").arg(root.fmtVal(root.stat(modelData.key).max))
                     color: Theme.textFaint; font.pixelSize: Theme.fsSmall; anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -189,7 +192,7 @@ Item {
             } else {
                 ctx.fillStyle = "#6d5a5a"
                 ctx.textAlign = "center"
-                ctx.fillText("Warte auf Messwerte …", (L + R) / 2, (T + B) / 2)
+                ctx.fillText(root.waitText, (L + R) / 2, (T + B) / 2)
                 return
             }
 

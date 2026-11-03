@@ -16,7 +16,7 @@ Flow {
         GlowButton {
             compact: true
             text: modelData
-            hint: Fmt.optionHint(root.kind, modelData, root.driver)
+            hint: Fmt.optionHint(root.kind, modelData, root.driver)   // qsTr() steckt in Fmt.js
             active: modelData === root.current
             onClicked: root.picked(modelData)
         }

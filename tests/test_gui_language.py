@@ -5,6 +5,7 @@ Benötigt PySide6, sonst werden die Tests übersprungen.
 
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -21,7 +22,7 @@ sys.path.insert(0, str(ROOT / "gui"))
 
 try:
     import shiboken6
-    from PySide6.QtCore import QCoreApplication, QPoint, QPointF, Qt, QUrl
+    from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, QPoint, QPointF, Qt, QUrl, Q_ARG
     from PySide6.QtQml import QQmlApplicationEngine
     from PySide6.QtQuick import QQuickWindow
     from PySide6.QtTest import QTest
@@ -39,6 +40,11 @@ if HAVE_QT:   # Fehler in den Projektmodulen sollen auffallen und nicht als "üb
 
 DE = {"LANG": "de_DE.UTF-8"}
 EN = {"LANG": "en_US.UTF-8"}
+# Umlaute und typisch deutsche Wörter der Oberfläche: Auf Englisch darf nichts davon sichtbar sein
+GERMAN = re.compile(r"[äöüÄÖÜß]|\b(Lüfter|Takt|Profil|Verlauf|Anwenden|Löschen|Bearbeiten|Standard|Einstellung\w*|Übersicht|"
+                    r"Auslastung|Leistung|Temperatur|Speicher|Beenden|Sprache|Kurve|Punkt|Sicherung|Fehler|Belegt|"
+                    r"Verfügbar|Abbrechen|Speichern|Aktiv|Last|Erneut|Neues|Eigene|Automatik|Regler|Treiber\w*|Warte|jetzt)\b")
+TEXT_PROPERTIES = ("text", "label", "sub", "title", "note", "hint", "tip", "placeholderText", "waitText", "liveText")
 
 
 def pump(sec=0.15):
@@ -229,6 +235,46 @@ class SidebarSwitchTests(unittest.TestCase):
         self.language.setLanguage("auto")
         pump(0.3)
         self.assertTrue(self.button("Auto").property("active"))
+
+    def visible_texts(self):
+        """Alle sichtbaren Beschriftungen, Hinweise und Untertitel als (Klasse, Eigenschaft, Text)."""
+        out = []
+        for it in walk(self.win.contentItem()):
+            if not it.isVisible():
+                continue
+            for name in TEXT_PROPERTIES:
+                value = it.property(name)
+                if isinstance(value, str) and value:
+                    out.append((it.metaObject().className(), name, value))
+        return out
+
+    def german_leftovers(self):
+        return sorted({(c, n, t) for c, n, t in self.visible_texts() if GERMAN.search(t)})
+
+    def test_no_german_text_left_on_any_page_in_english(self):
+        self.language.setLanguage("en")
+        pump(0.4)
+        dialog = self.win.findChild(QObject, "profileDialog")
+        for page in range(4):
+            self.win.setProperty("page", page)
+            pump(0.5)
+            self.assertEqual(self.german_leftovers(), [], f"Seite {page}")
+        self.win.setProperty("page", 2)
+        pump(0.3)
+        QMetaObject.invokeMethod(dialog, "openEdit", Qt.DirectConnection, Q_ARG("QVariant", "KI"), Q_ARG("QVariant", 0))
+        pump(0.6)
+        self.assertEqual(self.german_leftovers(), [], "Profildialog, Reiter Takt & CPU")
+        dialog.setProperty("tab", 1)
+        pump(0.4)
+        self.assertEqual(self.german_leftovers(), [], "Profildialog, Reiter Lüfter")
+        QMetaObject.invokeMethod(dialog, "close", Qt.DirectConnection)
+        pump(0.3)
+
+    def test_the_check_itself_finds_german_text(self):
+        # Gegenprobe: Auf Deutsch muss derselbe Test deutsche Texte finden, sonst prüft er nichts
+        self.win.setProperty("page", 3)
+        pump(0.5)
+        self.assertGreater(len(self.german_leftovers()), 5)
 
     def test_connection_text_is_translated(self):
         def status_texts():

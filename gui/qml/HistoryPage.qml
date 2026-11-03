@@ -14,8 +14,8 @@ Item {
             spacing: 10
             ColumnLayout {
                 spacing: 2
-                Text { text: "Verlauf"; color: "white"; font.pixelSize: Theme.fsBig; font.weight: Font.DemiBold }
-                Text { text: "Gestrichelte Linien markieren Profilwechsel. Mit der Maus über das Diagramm fahren für Werte."
+                Text { text: qsTr("History"); color: "white"; font.pixelSize: Theme.fsBig; font.weight: Font.DemiBold }
+                Text { text: qsTr("Dashed lines mark profile changes. Hover over a chart to see values.")
                        color: Theme.textFaint; font.pixelSize: Theme.fsSmall }
             }
             Item { Layout.fillWidth: true }
@@ -70,9 +70,9 @@ Item {
                     unit: "%"; yMinFixed: 0; yMaxFixed: 100; fillKey: "g_busy"; legendRows: 2
                     hist: backend.history; windowSeconds: backend.historyWindow
                     series: [
-                        { key: "g_busy", label: "GPU-Last", color: Theme.seriesGpuA },
-                        { key: "c_load", label: "CPU-Last", color: Theme.seriesCpu },
-                        { key: "g_fanp", label: "Lüfter", color: Theme.seriesFan }
+                        { key: "g_busy", label: qsTr("GPU load"), color: Theme.seriesGpuA },
+                        { key: "c_load", label: qsTr("CPU load"), color: Theme.seriesCpu },
+                        { key: "g_fanp", label: qsTr("Fan"), color: Theme.seriesFan }
                     ]
                 }
             }
@@ -83,8 +83,8 @@ Item {
                     unit: "MHz"; zeroBased: true; minSpan: 500; fillKey: "g_clk"; legendRows: 2
                     hist: backend.history; windowSeconds: backend.historyWindow
                     series: [
-                        { key: "g_clk", label: "GPU-Takt", color: Theme.seriesGpuA },
-                        { key: "c_clk", label: "CPU-Takt Ø", color: Theme.seriesCpu }
+                        { key: "g_clk", label: qsTr("GPU clock"), color: Theme.seriesGpuA },
+                        { key: "c_clk", label: qsTr("CPU clock Ø"), color: Theme.seriesCpu }
                     ]
                 }
             }

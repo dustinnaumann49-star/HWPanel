@@ -12,6 +12,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Property, QCoreApplication, QObject, QThread, Signal, Slot
 
+from hwpanel_i18n import tr
 from language import Language
 
 SOCKET_PATH = "/run/hwpanel/hwpanel.sock"
@@ -24,7 +25,8 @@ AUTOSTART_FILE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")
 AUTOSTART_TEXT = """[Desktop Entry]
 Type=Application
 Name=hwpanel
-Comment=GPU/CPU-Überwachung und Taktbegrenzung
+Comment=GPU/CPU monitoring and clock limits
+Comment[de]=GPU/CPU-Überwachung und Taktbegrenzung
 Exec=hwpanel-gui --minimized
 Icon=hwpanel
 Terminal=false
@@ -86,7 +88,7 @@ class Worker(QThread):
         if self._need_info:
             info = self.client.call({"cmd": "info"})
             if not info.get("ok"):
-                raise ValueError(info.get("error", "info fehlgeschlagen"))
+                raise ValueError(info.get("error", tr("info request failed")))
             self.info.emit(info)
             self._need_info = False
         self.status.emit(self.client.call({"cmd": "status"}))
@@ -121,8 +123,8 @@ class Worker(QThread):
                             resp = self.client.call(req)
                         except (OSError, ValueError) as e:
                             # ohne Meldung sähe es aus, als wäre der Klick wirkungslos gewesen
-                            self.result.emit(label, {"error": f"Daemon antwortet nicht ({e}). "
-                                                              "Der Befehl wurde evtl. nicht ausgeführt."})
+                            self.result.emit(label, {"error": tr("Daemon not responding ({error}). The command may not have been executed.",
+                                                                 error=e)})
                             raise
                         self.result.emit(label, resp)
                         if then:
@@ -320,25 +322,29 @@ class Backend(QObject):
             self.windowChanged.emit()
             self._rebuild_view()
 
+    def _display(self, name):
+        """Anzeigename: Das eingebaute Profil heißt intern "Standard", in der GUI je nach Sprache "Default"."""
+        return tr("Default") if name == self._info.get("builtin_profile", "Standard") else name
+
     @Slot(str)
     def applyProfile(self, name):
-        self._worker.submit(f"Profil {name} angewendet", {"cmd": "apply_profile", "name": name})
+        self._worker.submit(tr("Profile {name} applied", name=self._display(name)), {"cmd": "apply_profile", "name": name})
 
     @Slot()
     def resetAll(self):
-        self._worker.submit("Alles auf Standard zurückgesetzt", {"cmd": "reset", "target": "all"})
+        self._worker.submit(tr("Everything reset to default"), {"cmd": "reset", "target": "all"})
 
     @Slot("QVariantMap", "QVariantMap", "QVariantMap")
     def setManual(self, gpu, cpu, fan):
         gpu, cpu, fan = _clean(gpu), _clean(cpu), _clean(fan)
         if gpu:
-            self._worker.submit("GPU-Einstellungen angewendet", {"cmd": "set_gpu", "values": gpu})
+            self._worker.submit(tr("GPU settings applied"), {"cmd": "set_gpu", "values": gpu})
         if cpu:
-            self._worker.submit("CPU-Einstellungen angewendet", {"cmd": "set_cpu", "values": cpu})
+            self._worker.submit(tr("CPU settings applied"), {"cmd": "set_cpu", "values": cpu})
         if fan:
-            self._worker.submit("Lüfterkurve angewendet", {"cmd": "set_fan", "values": fan})
+            self._worker.submit(tr("Fan curve applied"), {"cmd": "set_fan", "values": fan})
         elif (self._info.get("fan") or {}).get("supported"):
-            self._worker.submit("Lüfter auf Automatik gestellt", {"cmd": "set_fan", "values": {"mode": "auto"}})
+            self._worker.submit(tr("Fan set to automatic"), {"cmd": "set_fan", "values": {"mode": "auto"}})
 
     @Slot(str, "QVariantMap", "QVariantMap", "QVariantMap", str)
     def saveProfile(self, name, gpu, cpu, fan, replaces):
@@ -348,7 +354,7 @@ class Backend(QObject):
         if fan:
             settings["fan"] = fan
         follow_up = self._rename_follow_up(name, replaces) if replaces and replaces != name else None
-        self._worker.submit(f"Profil {name} gespeichert",
+        self._worker.submit(tr("Profile {name} saved", name=name),
                             {"cmd": "save_profile", "name": name, "settings": settings}, follow_up)
 
     def _rename_follow_up(self, name, old):
@@ -370,21 +376,23 @@ class Backend(QObject):
         if not name:
             return ""
         if not PROFILE_NAME.fullmatch(name):
-            return "Erlaubt: 1-32 Zeichen, Buchstaben, Ziffern, Leerzeichen, . _ -"
+            return tr("Allowed: 1-32 characters, letters, digits, spaces, . _ -")
         builtin = self._info.get("builtin_profile", "Standard")
         if name.lower() == builtin.lower():
-            return f"'{builtin}' ist reserviert"
+            return tr("'{name}' is reserved", name=builtin)
+        if name != editing and name.lower() in ("default", tr("Default").lower()):   # so heißt das eingebaute Profil in der GUI
+            return tr("'{name}' is reserved", name=name)
         if name != editing and name in (self._info.get("profiles") or {}):
-            return "Ein Profil mit diesem Namen gibt es schon"
+            return tr("A profile with this name already exists")
         return ""
 
     @Slot(str)
     def deleteProfile(self, name):
-        self._worker.submit(f"Profil {name} gelöscht", {"cmd": "delete_profile", "name": name})
+        self._worker.submit(tr("Profile {name} deleted", name=name), {"cmd": "delete_profile", "name": name})
 
     @Slot(str)
     def setStartupProfile(self, name):
-        text = f"Profil {name} wird beim Systemstart angewendet" if name else "Kein Profil beim Systemstart"
+        text = tr("Profile {name} will be applied at system start", name=self._display(name)) if name else tr("No profile at system start")
         self._worker.submit(text, {"cmd": "set_autostart", "profile": name or None})
 
     @Slot(bool)
@@ -396,7 +404,7 @@ class Backend(QObject):
             elif AUTOSTART_FILE.exists():
                 AUTOSTART_FILE.unlink()
         except OSError as e:
-            self.toast.emit(f"Autostart nicht änderbar: {e}", True)
+            self.toast.emit(tr("Autostart could not be changed: {error}", error=e), True)
         self.autostartChanged.emit()
 
     @Slot()
