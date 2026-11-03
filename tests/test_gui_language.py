@@ -60,7 +60,7 @@ def walk(item):
         yield from walk(ch)
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class LanguageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -166,7 +166,7 @@ class LanguageTests(unittest.TestCase):
         self.assertEqual(QCoreApplication.translate("Sidebar", "Overview"), "Overview")
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class SidebarSwitchTests(unittest.TestCase):
     """The real main page: switching by mouse click takes effect immediately on all visible texts."""
 
@@ -180,7 +180,7 @@ class SidebarSwitchTests(unittest.TestCase):
         cls.engine = QQmlApplicationEngine()
         cls.engine.rootContext().setContextProperty("backend", cls.backend)
         cls.engine.load(QUrl.fromLocalFile(str(ROOT / "gui" / "qml" / "Main.qml")))
-        assert cls.engine.rootObjects(), "Main.qml konnte nicht geladen werden"
+        assert cls.engine.rootObjects(), "Main.qml could not be loaded"
         cls.win = shiboken6.wrapInstance(shiboken6.getCppPointer(cls.engine.rootObjects()[0])[0], QQuickWindow)
         pump(1.5)
 
@@ -206,7 +206,7 @@ class SidebarSwitchTests(unittest.TestCase):
             if it.isVisible() and it.property("text") == text and it.property("hint") is not None \
                     and it.property("compact"):
                 return it
-        raise AssertionError(f"Knopf {text!r} nicht gefunden")
+        raise AssertionError(f"Button {text!r} not found")
 
     def click(self, item):
         c = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
@@ -258,15 +258,15 @@ class SidebarSwitchTests(unittest.TestCase):
         for page in range(4):
             self.win.setProperty("page", page)
             pump(0.5)
-            self.assertEqual(self.german_leftovers(), [], f"Seite {page}")
+            self.assertEqual(self.german_leftovers(), [], f"Page {page}")
         self.win.setProperty("page", 2)
         pump(0.3)
         QMetaObject.invokeMethod(dialog, "openEdit", Qt.DirectConnection, Q_ARG("QVariant", "KI"), Q_ARG("QVariant", 0))
         pump(0.6)
-        self.assertEqual(self.german_leftovers(), [], "Profildialog, Reiter Takt & CPU")
+        self.assertEqual(self.german_leftovers(), [], "Profile dialog, Clocks & CPU tab")
         dialog.setProperty("tab", 1)
         pump(0.4)
-        self.assertEqual(self.german_leftovers(), [], "Profildialog, Reiter Lüfter")
+        self.assertEqual(self.german_leftovers(), [], "Profile dialog, Fan tab")
         QMetaObject.invokeMethod(dialog, "close", Qt.DirectConnection)
         pump(0.3)
 

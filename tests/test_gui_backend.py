@@ -42,7 +42,7 @@ def pump(cond, timeout=6.0):
     return False
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class BackendTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -77,7 +77,7 @@ class BackendTests(unittest.TestCase):
         b.setHistoryWindow(3600)
         v = b.history
         self.assertLessEqual(len(v["t"]), be.MAX_POINTS)
-        self.assertEqual(max(v["g_junc"]), 99.0, "Spitzen müssen beim Verdichten erhalten bleiben")
+        self.assertEqual(max(v["g_junc"]), 99.0, "Peaks must be preserved when downsampling")
         b.setHistoryWindow(60)
         v = b.history
         self.assertEqual(len(v["t"]), 61)
@@ -251,14 +251,14 @@ class BackendTests(unittest.TestCase):
     def test_profile_name_error(self):
         err = self.be.profileNameError
         self.assertEqual(err("Leise", ""), "")
-        self.assertEqual(err("Größe 2", ""), "", "Umlaute sind wie im Daemon erlaubt")
-        self.assertEqual(err("", ""), "", "leer: Speichern ist ohnehin gesperrt")
-        self.assertEqual(err("KI", "KI"), "", "Bearbeiten ohne Umbenennen")
+        self.assertEqual(err("Größe 2", ""), "", "Umlauts are allowed as in the daemon")
+        self.assertEqual(err("", ""), "", "empty: saving is blocked anyway")
+        self.assertEqual(err("KI", "KI"), "", "Editing without renaming")
         for bad, editing in (("Leise (Nacht)", ""), ("standard", ""), ("KI", ""),
                              ("KI", "Gaming"), ("x" * 33, ""), (".punkt", ""),
                              ("Default", ""), ("default", "")):   # this is what the built-in profile is called in English
             self.assertNotEqual(err(bad, editing), "", bad)
-        self.assertEqual(err("Default", "Default"), "", "ein schon vorhandenes Profil lässt sich weiter bearbeiten")
+        self.assertEqual(err("Default", "Default"), "", "an already existing profile can still be edited")
 
     def test_profile_name_check_matches_daemon(self):
         hw = self.client.hw
@@ -321,14 +321,14 @@ class BackendTests(unittest.TestCase):
     def test_connection_loss(self):
         class Broken:
             def call(self, req):
-                raise ConnectionRefusedError("weg")
+                raise ConnectionRefusedError("gone")
         self.be.shutdown()
         b2 = be.Backend(Broken())
         toasts = []
         b2.toast.connect(lambda t, e: toasts.append((t, e)))
         try:
             self.assertFalse(pump(lambda: b2.connected, timeout=1.5))
-            self.assertEqual(toasts, [], "fehlgeschlagene Abfragen im Hintergrund dürfen nicht melden")
+            self.assertEqual(toasts, [], "failed background queries must not report")
         finally:
             b2.shutdown()
 
@@ -339,7 +339,7 @@ class BackendTests(unittest.TestCase):
 
             def call(self, req):
                 if req["cmd"] == "apply_profile":
-                    raise ConnectionRefusedError("Verbindung abgelehnt")
+                    raise ConnectionRefusedError("Connection refused")
                 return self.inner.call(req)
 
         self.be._worker.client = DropsCommands(self.client)
@@ -349,7 +349,7 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(len(self.toasts), 1)
         text, is_error = self.toasts[0]
         self.assertTrue(is_error)
-        self.assertIn("Verbindung abgelehnt", text)
+        self.assertIn("Connection refused", text)
         self.assertNotIn("angewendet", text)
         self.assertEqual(self.be.activeProfile, "Standard")
 
@@ -368,7 +368,7 @@ class BackendTests(unittest.TestCase):
                 be.AUTOSTART_FILE = old
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class RealSocketTests(unittest.TestCase):
     """Backend against the real daemon server over a Unix socket."""
 
@@ -397,7 +397,7 @@ class RealSocketTests(unittest.TestCase):
                 demo.close()
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class TrayTests(unittest.TestCase):
     def test_menu_follows_profiles(self):
         app = QApplication.instance() or QApplication(sys.argv[:1])

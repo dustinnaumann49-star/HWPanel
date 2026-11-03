@@ -54,7 +54,7 @@ def main():
     engine.load(QUrl.fromLocalFile(str(HERE.parent / "gui" / "qml" / "Main.qml")))
     win = shiboken6.wrapInstance(shiboken6.getCppPointer(engine.rootObjects()[0])[0], QQuickWindow)
     first = frame(win)
-    print(f"Start: Laden+erster Frame {1000 * (time.perf_counter() - t0):.0f} ms (erster Frame {first:.0f} ms)")
+    print(f"Start: load + first frame {1000 * (time.perf_counter() - t0):.0f} ms (first frame {first:.0f} ms)")
     pump(2.0)
     for _ in range(3):
         frame(win)
@@ -84,7 +84,7 @@ def main():
             s["t"] = base + i + 1
             backend._on_history({"samples": [s], "events": []})
             ts.append(frame(win))
-        print(f"Datenupdate auf Seite {p}: Median {statistics.median(ts):.0f} ms, max {max(ts):.0f} ms")
+        print(f"Data update on page {p}: Median {statistics.median(ts):.0f} ms, max {max(ts):.0f} ms")
     # update while another page is visible (should cost almost nothing)
     win.setProperty("page", 2)
     pump(0.5)
@@ -95,7 +95,7 @@ def main():
         s["t"] = base + 100 + i
         backend._on_history({"samples": [s], "events": []})
         ts.append(frame(win))
-    print(f"Datenupdate auf Profile-Seite (Diagramme versteckt): Median {statistics.median(ts):.0f} ms")
+    print(f"Data update on Profile page (charts hidden): Median {statistics.median(ts):.0f} ms")
     backend.shutdown()
     sys.stdout.flush()
     os._exit(0)

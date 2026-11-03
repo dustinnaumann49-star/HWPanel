@@ -237,7 +237,7 @@ class TestRealCatalogs(unittest.TestCase):
         def no_duplicates(pairs):
             keys = [k for k, _ in pairs]
             dup = {k for k in keys if keys.count(k) > 1}
-            self.assertFalse(dup, f"{path.name}: doppelte Schlüssel {sorted(dup)}")
+            self.assertFalse(dup, f"{path.name}: duplicate keys {sorted(dup)}")
             return dict(pairs)
         return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=no_duplicates)
 
@@ -253,7 +253,7 @@ class TestRealCatalogs(unittest.TestCase):
         for f in self.files:
             for k, v in self.read(f).items():
                 self.assertIsInstance(v, str, f"{f.name}: {k!r}")
-                self.assertTrue(v.strip(), f"{f.name}: leere Übersetzung für {k!r}")
+                self.assertTrue(v.strip(), f"{f.name}: empty translation for {k!r}")
 
     def test_placeholders_and_markup_match_source_text(self):
         for f in self.files:
@@ -269,7 +269,7 @@ class TestRealCatalogs(unittest.TestCase):
                 continue
             for k, v in self.read(f).items():
                 if k != "_name":
-                    self.assertNotEqual(k, v, f"{f.name}: {k!r} ist unübersetzt (Eintrag streichen)")
+                    self.assertNotEqual(k, v, f"{f.name}: {k!r} is untranslated (remove the entry)")
 
 
 GERMAN_LETTERS = re.compile(r"[äöüÄÖÜß]")
@@ -327,24 +327,24 @@ class TestCatalogCoverage(unittest.TestCase):
 
     def test_every_source_text_has_a_german_translation(self):
         missing = sorted(t for t in self.used if t not in self.de and t not in SAME_IN_GERMAN)
-        self.assertEqual(missing, [], "fehlt in locales/de.json (oder gehört in SAME_IN_GERMAN)")
+        self.assertEqual(missing, [], "missing from locales/de.json (or belongs in SAME_IN_GERMAN)")
 
     def test_same_in_german_list_is_current(self):
         self.assertEqual(sorted(t for t in SAME_IN_GERMAN if t not in self.used), [],
-                         "kommt im Quelltext nicht mehr vor")
+                         "no longer occurs in the source")
         self.assertEqual(sorted(t for t in SAME_IN_GERMAN if t in self.de), [],
-                         "steht in der Liste und im Katalog: eines davon streichen")
+                         "in the list and in the catalog: remove one of the two")
 
     def test_catalog_has_no_unused_entries(self):
         unused = sorted(k for k in self.de if k not in self.used)
-        self.assertEqual(unused, [], "kommt im Quelltext nicht mehr vor")
+        self.assertEqual(unused, [], "no longer occurs in the source")
 
     def test_no_german_text_left_in_qml_outside_qstr(self):
         for f in QML_FILES:
             code = QSTR.sub('qsTr("")', f.read_text(encoding="utf-8"))
             code = re.sub(r"//.*", "", code)
             for lit in re.findall(r'"((?:[^"\\]|\\.)*)"', code):
-                self.assertIsNone(GERMAN_LETTERS.search(lit), f"{f.name}: {lit!r} gehört in qsTr()")
+                self.assertIsNone(GERMAN_LETTERS.search(lit), f"{f.name}: {lit!r} belongs in qsTr()")
 
     def test_no_german_text_left_in_gui_python_outside_tr(self):
         allowed_prefix = "[Desktop Entry]"   # template of the autostart file deliberately contains Comment[de]
@@ -358,7 +358,7 @@ class TestCatalogCoverage(unittest.TestCase):
                         and id(node) not in in_tr and id(node) not in docstrings \
                         and not node.value.startswith(allowed_prefix):
                     self.assertIsNone(GERMAN_LETTERS.search(node.value),
-                                      f"{f.name}:{node.lineno}: {node.value!r} gehört in tr()")
+                                      f"{f.name}:{node.lineno}: {node.value!r} belongs in tr()")
 
 
 # Words that exist only in German (case-sensitive on purpose: "MIT license" or "DES" must not match).
@@ -396,6 +396,34 @@ def comments(path):
 
 def looks_german(text):
     return bool(GERMAN_LETTERS.search(text) or GERMAN_WORDS.search(text))
+
+
+# Number of required arguments of the assertion methods; the argument after them is the failure message.
+ASSERT_ARITY = {"assertTrue": 1, "assertFalse": 1, "assertIsNone": 1, "assertIsNotNone": 1,
+                "assertEqual": 2, "assertNotEqual": 2, "assertIn": 2, "assertNotIn": 2, "assertIs": 2, "assertIsNot": 2,
+                "assertGreater": 2, "assertGreaterEqual": 2, "assertLess": 2, "assertLessEqual": 2,
+                "assertIsInstance": 2, "assertNotIsInstance": 2, "assertCountEqual": 2, "assertRegex": 2,
+                "assertNotRegex": 2, "assertAlmostEqual": 2, "skipIf": 1, "skipUnless": 1, "fail": 0, "skipTest": 0}
+
+
+def messages(tree):
+    """(line, text) of the texts that developers see: failure messages, skip reasons, AssertionError and print output.
+    The expected values of the assertions are not included: tests may check German output on purpose."""
+    for node in ast.walk(tree):
+        found = []
+        if isinstance(node, ast.Assert) and node.msg is not None:
+            found.append(node.msg)
+        elif isinstance(node, ast.Call):
+            name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+            if name in ASSERT_ARITY:
+                n = ASSERT_ARITY[name]
+                found += node.args[n:n + 1] + [k.value for k in node.keywords if k.arg in ("msg", "reason")]
+            elif name in ("print", "AssertionError"):
+                found += node.args
+        for m in found:
+            for part in ast.walk(m):
+                if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                    yield part.lineno, part.value
 
 
 class TestSourceLanguage(unittest.TestCase):
@@ -437,6 +465,29 @@ class TestSourceLanguage(unittest.TestCase):
             self.assertEqual(list(comments(d / "a.py")), [(2, "# real"), (1, "doc")])
             self.assertEqual(list(comments(d / "a.qml")), [(1, "// real"), (2, "/* block\n comment */")])
             self.assertEqual(list(comments(d / "a.sh")), [(2, "# real"), (3, "# whole line")])
+
+    def test_assertion_messages_and_script_output_are_english(self):
+        found = [f"tests/{f.name}:{line}: {text.strip()[:70]!r}"
+                 for f in sorted((ROOT / "tests").glob("*.py"))
+                 for line, text in messages(ast.parse(f.read_text(encoding="utf-8"))) if looks_german(text)]
+        self.assertEqual(found, [], "German texts in failure messages or script output (translate them to English)")
+
+    def test_the_message_extractor_takes_messages_and_leaves_expected_values(self):
+        sample = (
+            'import unittest\n'
+            '@unittest.skipIf(cond, "reason one")\n'
+            'class T(unittest.TestCase):\n'
+            '    def test(self):\n'
+            '        self.assertEqual(a, "Übersicht", "message two")\n'
+            '        self.assertTrue(a, msg=f"message {three!r}")\n'
+            '        self.assertIn("Lüfter", a)\n'
+            '        assert a, "message four"\n'
+            '        raise AssertionError("message five")\n'
+            '        print("output six")\n'
+            '        self.fail("message seven")\n')
+        self.assertEqual(sorted(t for _, t in messages(ast.parse(sample))),
+                         sorted(["reason one", "message two", "message ", "message four", "message five", "output six",
+                                 "message seven"]))   # the German expected values of the assertions are not messages
 
 
 if __name__ == "__main__":

@@ -310,7 +310,7 @@ class TestNothingGermanLeft(MessageCase):
         texts.extend(e["text"] for e in self.events())
         self.assertGreater(len(texts), 30)
         for t in texts:
-            self.assertIsNone(GERMAN.search(t), f"deutscher Text im englischen Textfeld: {t!r}")
+            self.assertIsNone(GERMAN.search(t), f"German text in the English text field: {t!r}")
 
     def test_every_message_renders_in_german_without_losing_arguments(self):
         for req in ({"cmd": "set_gpu", "values": {"sclk_max": 9999}}, {"cmd": "set_cpu", "values": {"governor": "xx"}},
@@ -321,7 +321,7 @@ class TestNothingGermanLeft(MessageCase):
                 text = ", ".join(map(str, arg)) if isinstance(arg, list) else str(arg)
                 if isinstance(arg, dict):
                     continue   # nested message: gets translated, so it does not appear literally in the text
-                self.assertIn(text, german, f"{req}: Argument {arg!r} fehlt in {german!r}")
+                self.assertIn(text, german, f"{req}: argument {arg!r} missing in {german!r}")
             self.assertNotEqual(plain, german)
 
 

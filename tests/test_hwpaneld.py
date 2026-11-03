@@ -565,7 +565,7 @@ class TestHistory(Base):
             self.hw._event(hwpaneld.Msg("Profile {name}", name="KI"))   # after the query, same tenth of a second
         newer = self.hw.history(since=last)
         self.assertEqual([e["text"] for e in newer["events"]], ["Profile KI"])
-        self.assertEqual(newer["samples"], [], "Proben bleiben streng neuer als since")
+        self.assertEqual(newer["samples"], [], "Samples stay strictly newer than since")
 
     def test_ring_buffer_limit(self):
         self.hw._hist = collections.deque(maxlen=60)

@@ -129,7 +129,7 @@ class TestCliOutput(Base):
                      ("reset", "all")):
             rc, out = self.cli("en", *args)
             self.assertEqual(rc, 0, f"{args}: {out}")
-            self.assertIsNone(GERMAN.search(out), f"{args}: deutscher Text in der englischen Ausgabe:\n{out}")
+            self.assertIsNone(GERMAN.search(out), f"{args}: German text in the English output:\n{out}")
 
     def test_english_status_and_info_lines(self):
         _, out = self.cli("en", "status")

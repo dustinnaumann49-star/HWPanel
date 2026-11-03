@@ -53,7 +53,7 @@ class TestHelp(unittest.TestCase):
         self.assertIn("Usage:", run("-h", LANG="en_US.UTF-8").stdout)
 
 
-@unittest.skipIf(os.geteuid() == 0, "als root würde das Skript wirklich installieren")
+@unittest.skipIf(os.geteuid() == 0, "as root the script would really install")
 class TestRootCheck(unittest.TestCase):
     """Without root the script aborts immediately and changes nothing."""
 
@@ -75,7 +75,7 @@ class TestSource(unittest.TestCase):
                 continue
             stripped = line.strip()
             ok = (stripped.startswith("#") or re.match(r"(say|sayerr)\s+\"", stripped) or stripped.startswith("Comment[de]="))
-            self.assertTrue(ok, f"install.sh:{n}: deutscher Text außerhalb von say/sayerr: {line!r}")
+            self.assertTrue(ok, f"install.sh:{n}: German text outside of say/sayerr: {line!r}")
 
     def test_desktop_entry_has_english_and_german_comment(self):
         self.assertIn("Comment=GPU/CPU monitoring and clock limits", self.text)

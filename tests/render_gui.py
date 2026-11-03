@@ -46,7 +46,7 @@ def main():
     engine.rootContext().setContextProperty("backend", backend)
     engine.load(QUrl.fromLocalFile(str(HERE.parent / "gui" / "qml" / "Main.qml")))
     if not engine.rootObjects():
-        print("QML konnte nicht geladen werden")
+        print("QML could not be loaded")
         return 1
     win = shiboken6.wrapInstance(shiboken6.getCppPointer(engine.rootObjects()[0])[0], QQuickWindow)
     pump(2.5)
@@ -65,7 +65,7 @@ def main():
         img = win.grabWindow()
         path = out / f"{p}_{NAMES[p]}{os.environ.get('HWPANEL_WINDOW', '')}.png"
         img.save(str(path))
-        print("geschrieben", path, img.width(), img.height())
+        print("written", path, img.width(), img.height())
     extra = os.environ.get("HWPANEL_EXTRA")
     if extra:
         # dialog-new | dialog-edit | dialog-fan (profile KI, fan tab) | dialog-new-fan | manual-fan | toast
@@ -87,7 +87,7 @@ def main():
             pump(0.4)
             win.grabWindow()
         win.grabWindow().save(str(out / f"x_{extra}.png"))
-        print("geschrieben", out / f"x_{extra}.png")
+        print("written", out / f"x_{extra}.png")
     backend.shutdown()
     sys.stdout.flush()
     os._exit(0)  # avoid teardown messages from the QML bindings

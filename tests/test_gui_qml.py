@@ -88,7 +88,7 @@ def walk(item):
         yield from walk(ch)
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class FanEditorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -98,7 +98,7 @@ class FanEditorTests(unittest.TestCase):
         path.write_text(WRAPPER % QUrl.fromLocalFile(str(QML_DIR)).toString(), encoding="utf-8")
         cls.engine = QQmlApplicationEngine()
         cls.engine.load(QUrl.fromLocalFile(str(path)))
-        assert cls.engine.rootObjects(), "Wrapper-QML konnte nicht geladen werden"
+        assert cls.engine.rootObjects(), "Wrapper QML could not be loaded"
         cls.win = cls.engine.rootObjects()[0]
         cls.ed = cls.win.findChild(QObject, "ed")
         pump(0.5)
@@ -226,7 +226,7 @@ class FanEditorTests(unittest.TestCase):
         self.assertEqual(self.ed.property("selected"), -1)
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class HintTests(unittest.TestCase):
     """Explanations on hover (choice buttons and labels)."""
 
@@ -238,7 +238,7 @@ class HintTests(unittest.TestCase):
         path.write_text(HINT_WRAPPER % QUrl.fromLocalFile(str(QML_DIR)).toString(), encoding="utf-8")
         cls.engine = QQmlApplicationEngine()
         cls.engine.load(QUrl.fromLocalFile(str(path)))
-        assert cls.engine.rootObjects(), "Wrapper-QML konnte nicht geladen werden"
+        assert cls.engine.rootObjects(), "Wrapper QML could not be loaded"
         cls.win = cls.engine.rootObjects()[0]
         cls.language = Language(env={"LANG": "de_DE.UTF-8"})   # the expectations below are German
         pump(0.5)
@@ -288,7 +288,7 @@ class HintTests(unittest.TestCase):
         self.assertEqual(set(hints), {"default", "performance", "balance_performance", "balance_power", "power"})
         for text, hint in hints.items():
             self.assertIn("<b>", hint, text)
-        self.assertEqual(len(set(hints.values())), 5, "jede Option braucht einen eigenen Text")
+        self.assertEqual(len(set(hints.values())), 5, "each option needs its own text")
 
     def test_governor_hint_depends_on_driver(self):
         gov = self.hints("gov")
@@ -323,7 +323,7 @@ class HintTests(unittest.TestCase):
         tip = self.tips(btn)[0]
         self.assertFalse(tip.property("visible"))
         self.hover(btn, wait=0.1)
-        self.assertFalse(tip.property("visible"), "darf nicht sofort aufblitzen")
+        self.assertFalse(tip.property("visible"), "must not flash up immediately")
         pump(0.7)
         self.assertTrue(tip.property("visible"))
         self.assertEqual(tip.property("text"), btn.property("hint"))
@@ -343,17 +343,17 @@ class HintTests(unittest.TestCase):
         self.assertTrue(tip.property("visible"))
         QTest.mouseClick(self.win, Qt.LeftButton, Qt.NoModifier, QPoint(round(c.x()), round(c.y())))
         pump(0.8)
-        self.assertFalse(tip.property("visible"), "nach dem Klick keine Erklärung mehr")
+        self.assertFalse(tip.property("visible"), "no explanation after the click")
         QTest.mouseMove(self.win, QPoint(2, 2))
         pump(0.2)
         self.hover(btn)
-        self.assertTrue(tip.property("visible"), "nach erneutem Darüberfahren wieder")
+        self.assertTrue(tip.property("visible"), "again after hovering anew")
 
     def test_card_width_fits_short_text_and_is_capped_for_long_text(self):
         label = self.row("help_short")
         btn = self.buttons("epp")["performance"]
         short, long_ = self.tips(label)[0], self.tips(btn)[0]
-        self.assertLess(short.property("contentWidth"), 120, "ein Wort braucht keine 300 px breite Karte")
+        self.assertLess(short.property("contentWidth"), 120, "a single word needs no 300 px wide card")
         self.assertGreater(short.property("contentWidth"), 20)
         self.assertEqual(long_.property("contentWidth"), 300)
 

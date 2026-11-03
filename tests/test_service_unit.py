@@ -49,8 +49,8 @@ class TestServiceUnit(unittest.TestCase):
         caps = " ".join(self.u.get("CapabilityBoundingSet", []))
         filt = " ".join(self.u.get("SystemCallFilter", []))
         if "os.chown(" in src:
-            self.assertIn("CAP_CHOWN", caps, "Socket-Gruppe setzen braucht CAP_CHOWN")
-            self.assertIn("@chown", filt, "Socket-Gruppe setzen braucht die chown-Syscalls")
+            self.assertIn("CAP_CHOWN", caps, "setting the socket group needs CAP_CHOWN")
+            self.assertIn("@chown", filt, "setting the socket group needs the chown syscalls")
         self.assertIn("StateDirectory", self.u)
         self.assertIn("RuntimeDirectory", self.u)
 
