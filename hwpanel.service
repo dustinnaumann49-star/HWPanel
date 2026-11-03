@@ -15,11 +15,34 @@ WatchdogSec=20
 RuntimeDirectory=hwpanel
 RuntimeDirectoryMode=0755
 StateDirectory=hwpanel
+
+# Härtung: Der Daemon liest sysfs/proc, schreibt sysfs und /var/lib/hwpanel und bietet einen Unix-Socket an.
+# Nur Optionen ab systemd 245, damit die Unit auch auf älteren Distributionen läuft.
 NoNewPrivileges=yes
 PrivateTmp=yes
+PrivateDevices=yes
 ProtectHome=yes
 ProtectSystem=strict
+# NICHT ProtectKernelTunables=yes setzen: Das macht /sys schreibgeschützt, der Daemon könnte nichts mehr setzen.
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
 RestrictAddressFamilies=AF_UNIX
+# Nur Unix-Sockets mit Dateipfad (/run/hwpanel/hwpanel.sock): Die bleiben auch aus anderen Netzwerk-Namensräumen erreichbar.
+PrivateNetwork=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+# CAP_CHOWN: Socket-Gruppe setzen. CAP_DAC_OVERRIDE: sysfs-Dateien, die per udev-Regel einem anderen Besitzer gehören.
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE
+# @chown gehört nicht zu @system-service, wird aber für die Socket-Gruppe gebraucht.
+SystemCallFilter=@system-service @chown
+SystemCallErrorNumber=EPERM
+# MemoryDenyWriteExecute bewusst nicht gesetzt: Manche Python-Builds (JIT, ctypes) brauchen ausführbaren Schreibspeicher.
 
 [Install]
 WantedBy=multi-user.target

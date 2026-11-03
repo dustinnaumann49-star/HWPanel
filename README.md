@@ -91,12 +91,29 @@ Die mitgelieferten Profile `Gaming` und `KI` enthalten keine Lüfterkurve (Autom
 - Lüfter: nur über Kurve mit Schutzregeln (siehe oben), nie `pwm1_enable=0` (Lüfter aus/Vollgas wird nicht geschrieben).
 - Konflikte: `lactd` und `power-profiles-daemon` können dieselben Werte ändern.
 
+## Sicherheit
+
+- Der Daemon läuft als root, aber in einem systemd-Sandkasten (`hwpanel.service`): Dateisystem schreibgeschützt (außer `/sys` und `/var/lib/hwpanel`), kein Zugriff auf `/home`, kein Netzwerk (nur der Unix-Socket), nur die root-Rechte `CAP_CHOWN` und `CAP_DAC_OVERRIDE`, Syscall-Filter `@system-service`. `systemd-analyze security hwpanel.service` bewertet die Unit mit 1.9 (OK).
+- Die Unit nutzt nur Optionen ab systemd 245. Macht eine Distribution oder ein Python-Build damit Probleme, lässt sich die Härtung per Drop-in lockern (`sudo systemctl edit hwpanel`, z. B. `SystemCallFilter=` leer setzen).
+- `ProtectKernelTunables=yes` darf nicht gesetzt werden: `/sys` wäre dann schreibgeschützt, und der Daemon könnte nichts mehr setzen. `tests/test_service_unit.py` prüft das.
+- Zugriff auf den Socket hat die Gruppe `socket_group` aus `config.json`. Wer darin ist, kann Takt, Lüfter und Profile ändern, aber nie über die oben genannten Grenzen hinaus.
+
 ## Diagnose
 
 ```
 sudo python3 /usr/local/lib/hwpanel/hwpaneld.py --probe    # liest nur, schreibt nichts
 journalctl -u hwpanel -e
 ```
+
+Lüfter-Rückfall nach einem Absturz prüfen (erst eine Lüfterkurve setzen, dann den Hauptprozess killen; danach muss `pwm1_enable` 2 sein):
+
+```
+hwpanelctl fan curve 30:40,50:55,80:90
+sudo systemctl kill --kill-whom=main -s KILL hwpanel
+cat /sys/class/drm/card*/device/hwmon/hwmon*/pwm1_enable
+```
+
+Ohne `--kill-whom=main` tötet systemd auch den `ExecStopPost`-Prozess, der den Lüfter zurücksetzt. Der Test wäre dann wertlos.
 
 ## Tests
 
