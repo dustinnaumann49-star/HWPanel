@@ -2,6 +2,8 @@
 
 **Languages:** English · [Deutsch](README.de.md)
 
+[![Tests](https://github.com/dustinnaumann49-star/HWPanel/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/dustinnaumann49-star/HWPanel/actions/workflows/tests.yml)
+
 Monitoring, clock limits and fan curves for AMD GPUs (amdgpu) and CPUs (cpufreq/intel_pstate) on Linux. No overclocking:
 all upper limits are the driver defaults, read when the daemon starts for the first time.
 
@@ -46,7 +48,8 @@ hwpanel changes hardware settings (GPU and CPU clocks, power limit, fan speed). 
 ## Tested with
 
 So far on one system only: CachyOS (Arch-based), kernel 6.18 LTS, systemd 262, Python 3.14, PySide6 6.12, KDE Plasma 6 (Wayland), AMD Radeon RX 6750 XT (RDNA 2), Intel Core i7-6700K (`intel_pstate`).
-Other graphics cards (e.g. RDNA 3 and newer), `amd-pstate`, older Python and systemd versions and other distributions are untested. Reports from other hardware are welcome.
+Other graphics cards (e.g. RDNA 3 and newer), `amd-pstate`, older systemd versions and other distributions are untested. Reports from other hardware are welcome.
+The automated tests (on emulated hardware) run in GitHub Actions on Python 3.8 and several newer versions up to 3.14.
 On this system the fan fallback to automatic was also tried live, after a hard kill of the daemon and after freezing it (systemd watchdog); see [Diagnostics](#diagnostics).
 
 ## Installation (fish/bash)
@@ -136,7 +139,7 @@ The shipped profiles `Gaming` and `KI` contain no fan curve (automatic). Create 
 
 ## Known limitations
 
-- Tested on one system only (RDNA 2, `intel_pstate`). Newer GPUs, `amd-pstate`, older Python and systemd versions and other distributions are untested (see [Tested with](#tested-with)).
+- Tested on one system only (RDNA 2, `intel_pstate`). Newer GPUs, `amd-pstate`, older systemd versions and other distributions are untested (see [Tested with](#tested-with)).
 - Only the first AMD graphics card that is found is controlled. Systems with several AMD GPUs (for example an AMD integrated GPU plus a dedicated card) are untested.
 - The clock limits need the Overdrive interface (`pp_od_clk_voltage`), on some systems only with `amdgpu.ppfeaturemask=0xffffffff`. Without it, monitoring, power limit and fan control should keep working, but this is untested.
 - The fan configuration is not kept across a daemon restart: the fan is on automatic until a profile is applied (see [Fan control](#fan-control)).

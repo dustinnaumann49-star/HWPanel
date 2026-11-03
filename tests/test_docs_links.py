@@ -100,6 +100,10 @@ class TestCiWorkflow(unittest.TestCase):
         tested = re.findall(r"3\.\d+", matrix.group(1))
         self.assertEqual(min(tested, key=lambda v: int(v.split(".")[1])), minimum)
 
+    def test_both_readmes_show_the_status_badge_of_this_workflow(self):
+        for name in ("README.md", "README.de.md"):
+            self.assertIn("actions/workflows/tests.yml/badge.svg", read(name), name)
+
     def test_the_gui_job_fails_when_a_test_is_skipped(self):
         # without this a missing library would turn the GUI tests into silent skips and the job would stay green
         self.assertIn("grep -q skipped", self.text)

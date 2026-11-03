@@ -2,6 +2,8 @@
 
 **Sprachen:** [English](README.md) · Deutsch
 
+[![Tests](https://github.com/dustinnaumann49-star/HWPanel/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/dustinnaumann49-star/HWPanel/actions/workflows/tests.yml)
+
 Überwachung, Taktbegrenzung und Lüfterkurven für AMD-GPU (amdgpu) und CPU (cpufreq/intel_pstate) unter Linux. Kein Übertakten:
 Alle Obergrenzen sind die Treiber-Standardwerte, die beim ersten Start des Daemons ermittelt werden.
 
@@ -46,7 +48,8 @@ hwpanel ändert Hardware-Einstellungen (GPU- und CPU-Takt, Power-Limit, Lüfterd
 ## Getestet mit
 
 Bisher nur auf einem System: CachyOS (Arch-basiert), Kernel 6.18 LTS, systemd 262, Python 3.14, PySide6 6.12, KDE Plasma 6 (Wayland), AMD Radeon RX 6750 XT (RDNA 2), Intel Core i7-6700K (`intel_pstate`).
-Andere Grafikkarten (z. B. RDNA 3 und neuer), `amd-pstate`, ältere Python- und systemd-Versionen und andere Distributionen sind ungetestet. Berichte über andere Hardware sind willkommen.
+Andere Grafikkarten (z. B. RDNA 3 und neuer), `amd-pstate`, ältere systemd-Versionen und andere Distributionen sind ungetestet. Berichte über andere Hardware sind willkommen.
+Die automatischen Tests (auf nachgebauter Hardware) laufen in GitHub Actions auf Python 3.8 und mehreren neueren Versionen bis 3.14.
 Auf diesem System wurde der Lüfter-Rückfall auf Automatik auch live ausprobiert, nach einem harten Kill des Daemons und nach dem Einfrieren (systemd-Watchdog); siehe [Diagnose](#diagnose).
 
 ## Installation (fish/bash)
@@ -136,7 +139,7 @@ Die mitgelieferten Profile `Gaming` und `KI` enthalten keine Lüfterkurve (Autom
 
 ## Bekannte Einschränkungen
 
-- Nur auf einem System getestet (RDNA 2, `intel_pstate`). Neuere GPUs, `amd-pstate`, ältere Python- und systemd-Versionen und andere Distributionen sind ungetestet (siehe [Getestet mit](#getestet-mit)).
+- Nur auf einem System getestet (RDNA 2, `intel_pstate`). Neuere GPUs, `amd-pstate`, ältere systemd-Versionen und andere Distributionen sind ungetestet (siehe [Getestet mit](#getestet-mit)).
 - Gesteuert wird nur die erste gefundene AMD-Grafikkarte. Systeme mit mehreren AMD-GPUs (zum Beispiel eine AMD-Grafikeinheit im Prozessor plus eine dedizierte Karte) sind ungetestet.
 - Die Takt-Obergrenzen brauchen die Overdrive-Schnittstelle (`pp_od_clk_voltage`), auf manchen Systemen nur mit `amdgpu.ppfeaturemask=0xffffffff`. Ohne sie sollten Überwachung, Power-Limit und Lüfter weiter funktionieren, das ist aber ungetestet.
 - Die Lüfterkonfiguration bleibt über einen Daemon-Neustart nicht erhalten: Der Lüfter steht auf Automatik, bis ein Profil angewendet wird (siehe [Lüftersteuerung](#lüftersteuerung)).
