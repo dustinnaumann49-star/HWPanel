@@ -12,6 +12,19 @@ Alle Obergrenzen sind die Treiber-Standardwerte, die beim ersten Start des Daemo
 
 GUI, Kommandozeile, Installationsskript und die Meldungen des Daemons (Fehler, Ereignisse im Verlauf) gibt es auf Deutsch und Englisch, sie folgen der Systemsprache. Das Journal (`journalctl -u hwpanel`) ist immer Englisch.
 
+## Screenshots
+
+[![Übersicht](docs/screenshots/de/overview.png)](docs/screenshots/de/overview.png)
+
+| | |
+|---|---|
+| [![Verlauf](docs/screenshots/de/history.png)](docs/screenshots/de/history.png) | [![Profile](docs/screenshots/de/profiles.png)](docs/screenshots/de/profiles.png) |
+| Verlauf: Temperatur, Leistung, Last und Takt, Profilwechsel markiert | Profile |
+| [![Manuell](docs/screenshots/de/manual.png)](docs/screenshots/de/manual.png) | [![Lüfterkurve](docs/screenshots/de/fan-curve.png)](docs/screenshots/de/fan-curve.png) |
+| Manuelle Einstellung: Takt und CPU | Lüfterkurven-Editor mit dem Live-Marker der Temperatur |
+
+Die Bilder zeigen simulierte Demo-Daten aus `tests/demo_client.py` (eine nachgebaute AMD-Karte und CPU), keinen echten Rechner. `KI` ist der Name des mitgelieferten Profils für KI-Anwendungen. `tests/render_gui.py` rendert solche Bilder.
+
 ## Status
 
 Version 0.1.0. Entwickelt und getestet auf einem einzigen System (siehe [Getestet mit](#getestet-mit)). Das Socket-Protokoll und die Dateien in `/var/lib/hwpanel/` können sich noch ändern.

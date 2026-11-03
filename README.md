@@ -12,6 +12,19 @@ all upper limits are the driver defaults, read when the daemon starts for the fi
 
 The GUI, the command-line output, the installer and the daemon's messages (errors, history events) are available in English and German and follow the system language. The journal (`journalctl -u hwpanel`) is always in English.
 
+## Screenshots
+
+[![Overview](docs/screenshots/en/overview.png)](docs/screenshots/en/overview.png)
+
+| | |
+|---|---|
+| [![History](docs/screenshots/en/history.png)](docs/screenshots/en/history.png) | [![Profiles](docs/screenshots/en/profiles.png)](docs/screenshots/en/profiles.png) |
+| History: temperature, power, load and clocks, profile changes marked | Profiles |
+| [![Manual](docs/screenshots/en/manual.png)](docs/screenshots/en/manual.png) | [![Fan curve](docs/screenshots/en/fan-curve.png)](docs/screenshots/en/fan-curve.png) |
+| Manual settings: clocks and CPU | Fan curve editor with the live temperature marker |
+
+The screenshots show simulated demo data from `tests/demo_client.py` (an emulated AMD card and CPU), not a real machine. `KI` is the German name of the shipped profile for AI workloads. `tests/render_gui.py` renders such images.
+
 ## Status
 
 Version 0.1.0. Developed and tested on a single system (see [Tested with](#tested-with)). The socket protocol and the files in `/var/lib/hwpanel/` may still change.
