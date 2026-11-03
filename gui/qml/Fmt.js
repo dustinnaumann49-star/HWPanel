@@ -19,7 +19,7 @@ function gib(mib) {
     return (mib / 1024).toFixed(1)
 }
 
-// Anzeigename eines Profils: Das eingebaute heißt intern "Standard" (so spricht man den Daemon an), angezeigt wird "Default"/"Standard".
+// Display name of a profile: the built-in one is called "Standard" internally (that is how the daemon is addressed), the display is "Default"/"Standard".
 function profileLabel(name, isBuiltin) {
     return isBuiltin ? qsTr("Default") : name
 }
@@ -41,9 +41,9 @@ function describeCpu(p) {
     return parts.length ? parts.join(" · ") : qsTr("CPU: default")
 }
 
-// Erklärungen für Auswahlwerte beim Darüberfahren (kind: "epp", "governor" oder "sensor").
-// Leerer Text, wenn der Wert unbekannt ist: Dann zeigt die Oberfläche nichts an.
-// Jeder Text steht als qsTr() im Aufruf, damit er beim Sprachwechsel neu ausgewertet wird.
+// Explanations for choice values on hover (kind: "epp", "governor" or "sensor").
+// Empty text if the value is unknown: then the UI shows nothing.
+// Every text appears as qsTr() in the call, so that it is re-evaluated on a language change.
 function eppHint(value) {
     switch (value) {
     case "default": return qsTr("<b>CPU default.</b> The value set by the manufacturer, usually similar to “balance_performance”.")
@@ -76,7 +76,7 @@ function sensorHint(value) {
     return ""
 }
 
-// Bei diesen Treibern regelt "powersave" den Takt nach Bedarf; bei anderen hält er den niedrigsten Takt.
+// With these drivers "powersave" regulates the clock on demand; with others it holds the lowest clock.
 var PSTATE_DRIVERS = ["intel_pstate", "amd-pstate", "amd-pstate-epp"]
 
 function optionHint(kind, value, driver) {
@@ -97,7 +97,7 @@ function sensorLabel(s) {
     return ({ edge: "Edge", junction: "Junction", mem: "VRAM" })[s] || s
 }
 
-// Lineare Interpolation einer Lüfterkurve [[°C, %], ...], außerhalb konstant
+// Linear interpolation of a fan curve [[°C, %], ...], constant outside
 function curveValue(pts, t) {
     if (!pts || !pts.length || t === null || t === undefined || isNaN(t)) return NaN
     if (t <= pts[0][0]) return pts[0][1]
@@ -110,7 +110,7 @@ function curveValue(pts, t) {
     return pts[pts.length - 1][1]
 }
 
-// Schutzregeln des Daemons vorab prüfen; leerer String = in Ordnung
+// Check the daemon's protection rules in advance; empty string = fine
 function ruleError(pts, rules) {
     if (!pts || pts.length < 2) return qsTr("At least 2 points required")
     for (var i = 0; i < (rules || []).length; i++) {

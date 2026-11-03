@@ -1,5 +1,5 @@
-"""Meldungen des Daemons im Protokoll: englischer Text in den bisherigen Feldern, dazu Vorlage und Argumente (*_msg),
-neutrale Kennungen statt deutscher Wörter. In deutscher Darstellung müssen die alten Texte wieder entstehen."""
+"""Messages of the daemon in the protocol: English text in the existing fields, plus template and arguments (*_msg),
+neutral identifiers instead of German words. In German rendering the old texts must be reproduced."""
 
 import errno
 import json
@@ -259,7 +259,7 @@ class TestFanMode(MessageCase):
 
 class TestNothingGermanLeft(MessageCase):
     def test_all_plain_text_fields_are_english(self):
-        """Ein Durchlauf durch Fehler, Hinweise, Ereignisse und Lüfterzustand: kein deutsches Wort in den Textfeldern."""
+        """A run through errors, notes, events and fan state: no German word in the text fields."""
         texts = []
 
         def collect(r):
@@ -320,7 +320,7 @@ class TestNothingGermanLeft(MessageCase):
             for arg in r["error_msg"]["args"].values():
                 text = ", ".join(map(str, arg)) if isinstance(arg, list) else str(arg)
                 if isinstance(arg, dict):
-                    continue   # verschachtelte Meldung: wird übersetzt, steht also nicht wörtlich im Text
+                    continue   # nested message: gets translated, so it does not appear literally in the text
                 self.assertIn(text, german, f"{req}: Argument {arg!r} fehlt in {german!r}")
             self.assertNotEqual(plain, german)
 

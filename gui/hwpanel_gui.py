@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hwpanel-gui: Fenster und Tray-Icon für hwpaneld."""
+"""hwpanel-gui: window and tray icon for hwpaneld."""
 
 import argparse
 import os
@@ -13,7 +13,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # hwpanel_i18n.py und locales/ liegen im Hauptordner
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # hwpanel_i18n.py and locales/ live in the main folder
 from backend import SOCKET_PATH, Backend, DaemonClient  # noqa: E402
 from hwpanel_i18n import tr  # noqa: E402
 from language import CONFIG_FILE, Language  # noqa: E402
@@ -82,7 +82,7 @@ class Tray:
         group = QActionGroup(self.menu)
         group.setExclusive(True)
         for i, name in enumerate(self.backend.profileNames):
-            act = QAction(tr("Default") if i == 0 else name, self.menu)   # das eingebaute Profil heißt intern "Standard"
+            act = QAction(tr("Default") if i == 0 else name, self.menu)   # the built-in profile is called "Standard" internally
             act.setCheckable(True)
             act.setChecked(name == self.backend.activeProfile)
             act.triggered.connect(lambda _=False, n=name: self.backend.applyProfile(n))
@@ -151,7 +151,7 @@ def main():
     backend = Backend(DaemonClient(args.socket), start_page=args.page, minimized=False,
                       language=Language(config_path=CONFIG_FILE))
     available = QSystemTrayIcon.isSystemTrayAvailable()
-    app.setQuitOnLastWindowClosed(not available)  # ohne Tray beendet das Schließen des Fensters das Programm
+    app.setQuitOnLastWindowClosed(not available)  # without a tray, closing the window ends the program
     backend.trayAvailable = available
     backend._minimized = bool(args.minimized and available)
 

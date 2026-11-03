@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import "."
 import "Fmt.js" as Fmt
 
-// Lüfter-Einstellungen: Automatik (Treiber) oder eigene Kurve mit grafischem Editor.
+// Fan settings: automatic (driver) or custom curve with graphical editor.
 Item {
     id: f
     property bool curveOn: false
@@ -42,7 +42,7 @@ Item {
     function loadDefaults() { setFan(null) }
     function loadProfile(p) { setFan(p ? p.fan : null) }
     function loadCurrent() { setFan(Fmt.get(backend.status, ["settings", "fan"], null)) }
-    // Leeres Objekt = Automatik
+    // Empty object = automatic
     function fanValue() { return curveOn ? { sensor: sensor, curve: copy(pts) } : ({}) }
 
     implicitHeight: 360

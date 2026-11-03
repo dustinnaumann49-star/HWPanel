@@ -1,4 +1,4 @@
-"""Tests gegen eine nachgebaute sysfs-Struktur (Werte aus den echten Ausgaben des Nutzers)."""
+"""Tests against a replicated sysfs structure (values from real outputs of the author's machine)."""
 
 import collections
 import contextlib
@@ -66,7 +66,7 @@ Memory Device
 
 
 class FakeIO:
-    """Emuliert sysfs inklusive der OD-Semantik (r / s / m / c) des amdgpu-Treibers."""
+    """Emulates sysfs including the OD semantics (r / s / m / c) of the amdgpu driver."""
 
     def __init__(self, committed_sclk=2679, pad=False):
         self.pad = pad
@@ -128,10 +128,10 @@ class FakeIO:
                               "SwapTotal:       4096000 kB\nSwapFree:        4096000 kB\n")
         f["/proc/cpuinfo"] = "processor\t: 0\nmodel name\t: Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz\n"
 
-    # --- Treiber-Emulation
+    # --- Driver emulation
     def _od_text(self):
         c = self.committed
-        gap = "\x00" * 400 if self.pad else ""  # echter Treiber füllt mit NUL-Bytes auf
+        gap = "\x00" * 400 if self.pad else ""  # the real driver pads with NUL bytes
         return (f"OD_SCLK:\n0: {c['sclk'][0]}Mhz\n1: {c['sclk'][1]}Mhz\n"
                 f"OD_MCLK:\n0: {c['mclk'][0]}Mhz\n1: {c['mclk'][1]}MHz\n{gap}"
                 f"OD_VDDGFX_OFFSET:\n{c['vo']}mV\n{gap}"
@@ -152,7 +152,7 @@ class FakeIO:
         else:
             raise OSError(errno.EINVAL, "Invalid argument")
 
-    # --- IO-Schnittstelle
+    # --- IO interface
     def read(self, path):
         if path == OD:
             return self._od_text().strip()
@@ -170,7 +170,7 @@ class FakeIO:
         if path.endswith("/power1_cap") and int(value) > int(self.files[HWMON + "/power1_cap_max"]):
             raise OSError(errno.EINVAL, "Invalid argument")
         if path.endswith("/pwm1") and self.files[HWMON + "/pwm1_enable"] != "1":
-            raise OSError(errno.EINVAL, "Invalid argument")  # amdgpu: erst manuellen Modus aktivieren
+            raise OSError(errno.EINVAL, "Invalid argument")  # amdgpu: enable manual mode first
         if path.endswith("/pwm1_enable") and value.strip() not in ("0", "1", "2"):
             raise OSError(errno.EINVAL, "Invalid argument")
         if path not in self.files:
@@ -267,7 +267,7 @@ class TestDefaults(Base):
 
 
 class TestNulPaddedOdFile(unittest.TestCase):
-    """Regression: echte pp_od_clk_voltage enthält NUL-Padding, dadurch fehlten OD_RANGE und Grenzen."""
+    """Regression: the real pp_od_clk_voltage contains NUL padding, which made OD_RANGE and the limits go missing."""
 
     def test_limits_and_set_with_padding(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -416,15 +416,15 @@ class TestApply(Base):
         self.assertIn("(error: sclk_max: expected 2300", self.hw._events[-1]["text"])
 
     def test_driver_rounding_of_default_clock_is_not_an_error(self):
-        """Reale Karte: Standard 2679 gespeichert, der Treiber meldet nach dem Reset 2674."""
+        """Real card: default 2679 stored, the driver reports 2674 after the reset."""
         self.io.default["sclk"][1] = 2674
         r = self.hw.apply_profile("Standard")
         self.assertTrue(r["ok"], r)
         self.assertEqual(self.hw._events[-1]["text"], "Profile Default")
-        self.assertEqual(r["active_profile"], "Standard")      # wird trotz Rundung als aktiv erkannt
+        self.assertEqual(r["active_profile"], "Standard")      # is recognized as active despite the rounding
 
     def test_changed_driver_default_is_only_a_note(self):
-        self.io.default["sclk"][1] = 2500          # deutlich anderer Standard, nichts verlangt
+        self.io.default["sclk"][1] = 2500          # clearly different default, nothing requested
         r = self.hw.reset("gpu")
         self.assertTrue(r["ok"], r)
 
@@ -434,7 +434,7 @@ class TestApply(Base):
         def rounding(cmd):
             orig(cmd)
             if cmd.split()[0] == "c":
-                self.io.committed["sclk"][1] -= 4   # Treiber rundet 2300 -> 2296
+                self.io.committed["sclk"][1] -= 4   # driver rounds 2300 -> 2296
 
         with mock.patch.object(self.io, "_od_write", side_effect=rounding):
             r = self.hw.set_gpu({"sclk_max": 2300})
@@ -447,7 +447,7 @@ class TestApply(Base):
         def off(cmd):
             orig(cmd)
             if cmd.split()[0] == "c":
-                self.io.committed["sclk"][1] = 2679   # Wunsch 2300, Treiber bleibt bei 2679
+                self.io.committed["sclk"][1] = 2679   # requested 2300, driver stays at 2679
 
         with mock.patch.object(self.io, "_od_write", side_effect=off):
             r = self.hw.set_gpu({"sclk_max": 2300})
@@ -464,7 +464,7 @@ class TestWhitelist(Base):
                 self.hw._write(p, "1")
 
     def test_paths_must_match_exactly(self):
-        # '$' würde vor einem angehängten Zeilenumbruch noch passen, '\d' auch Ziffern anderer Schriften
+        # '$' would still match before an appended newline, '\d' also digits of other scripts
         for p in (OD + "\n", HWMON + "/pwm1\n", HWMON + "/pwm1_enable\n", HWMON + "/power1_cap\n",
                   CPU + "/cpu3/cpufreq/scaling_max_freq\n", CPU + "/intel_pstate/no_turbo\n",
                   OD + " ", "\n" + OD,
@@ -557,12 +557,12 @@ class TestHistory(Base):
             self.assertEqual([x["t"] for x in newer], [x["t"] for x in h["samples"][3:]])
 
     def test_event_in_the_same_tenth_as_the_last_sample_is_not_lost(self):
-        """Der Client fragt mit dem Zeitstempel der letzten Probe nach Neuem. Zeitstempel sind auf 0,1 s gerundet:
-        Ein Ereignis, das nach dieser Probe in dieselbe Zehntelsekunde fällt, darf dabei nicht verloren gehen."""
+        """The client asks for new data with the timestamp of the last sample. Timestamps are rounded to 0.1 s:
+        An event that falls into the same tenth of a second after this sample must not get lost."""
         with mock.patch("hwpaneld.time.time", return_value=1000.04):
             self.hw._tick()
             last = self.hw.history()["samples"][-1]["t"]
-            self.hw._event(hwpaneld.Msg("Profile {name}", name="KI"))   # nach dem Abruf, gleiche Zehntelsekunde
+            self.hw._event(hwpaneld.Msg("Profile {name}", name="KI"))   # after the query, same tenth of a second
         newer = self.hw.history(since=last)
         self.assertEqual([e["text"] for e in newer["events"]], ["Profile KI"])
         self.assertEqual(newer["samples"], [], "Proben bleiben streng neuer als since")
@@ -680,7 +680,7 @@ class TestFan(Base):
         self.assertTrue(r["ok"], r)
         return r
 
-    # ---- Kurve und Validierung
+    # ---- Curve and validation
 
     def test_interpolation_and_clamping(self):
         f = hwpaneld.fan_curve_value
@@ -697,16 +697,16 @@ class TestFan(Base):
         bad = [
             "x", {"curve": CURVE, "foo": 1}, {"mode": "static", "curve": CURVE},
             {"curve": CURVE, "sensor": "gpu"}, {"sensor": "edge"}, {"curve": [[30, 40]]},
-            {"curve": [[t, 60] for t in range(20, 31)]},                   # 11 Punkte
-            {"curve": [[30, 40], [30, 60]]},                               # gleiche Temperatur
-            {"curve": [[50, 60], [40, 70]]},                               # Temperatur sinkt
-            {"curve": [[30, 60], [80, 50]]},                               # Prozent sinkt
+            {"curve": [[t, 60] for t in range(20, 31)]},                   # 11 points
+            {"curve": [[30, 40], [30, 60]]},                               # same temperature
+            {"curve": [[50, 60], [40, 70]]},                               # temperature falls
+            {"curve": [[30, 60], [80, 50]]},                               # percent falls
             {"curve": [[30, 40], [80, 101]]}, {"curve": [[30, -1], [80, 90]]},
             {"curve": [[30, 40], [111, 90]]}, {"curve": [[-1, 40], [80, 90]]},
             {"curve": [[30, True], [80, 90]]}, {"curve": [["30", 40], [80, 90]]},
             {"curve": [[30, 40, 1], [80, 90]]}, {"curve": [30, 80]},
-            {"curve": [[30, 0], [90, 40]]},                                # bei 60 °C unter 30 %
-            {"curve": [[30, 40], [90, 40]]},                               # bei 80 °C unter 50 %
+            {"curve": [[30, 0], [90, 40]]},                                # at 60 °C below 30 %
+            {"curve": [[30, 40], [90, 40]]},                               # at 80 °C below 50 %
         ]
         for b in bad:
             with self.assertRaises(ValueError, msg=str(b)):
@@ -723,7 +723,7 @@ class TestFan(Base):
         with self.assertRaises(ValueError):
             self.hw.set_fan({"curve": CURVE})
 
-    # ---- Regelung
+    # ---- Control
 
     def test_set_fan_takes_manual_control(self):
         r = self.start(edge=41)
@@ -755,20 +755,20 @@ class TestFan(Base):
         high = self.pwm()
         self.temps(edge=41)
         self.hw.fan_step(now=1000)
-        self.temps(edge=66)             # Ziel wieder >= aktuell
+        self.temps(edge=66)             # target >= current again
         self.hw.fan_step(now=1003)
         self.temps(edge=41)
         self.hw.fan_step(now=1004)
-        self.hw.fan_step(now=1008)      # nur 4 s seit dem neuen Absenken
+        self.hw.fan_step(now=1008)      # only 4 s since the new lowering
         self.assertGreaterEqual(self.pwm(), high)
 
     def test_change_threshold_avoids_tiny_writes(self):
         self.start(edge=41)
         n = len(self.pwm_writes())
-        self.temps(edge=42)             # Ziel 52, Differenz 1
+        self.temps(edge=42)             # target 52, difference 1
         self.hw.fan_step(now=1000)
         self.assertEqual(len(self.pwm_writes()), n)
-        self.temps(edge=43)             # Ziel 53, Differenz 2
+        self.temps(edge=43)             # target 53, difference 2
         self.hw.fan_step(now=1001)
         self.assertEqual(len(self.pwm_writes()), n + 1)
 
@@ -787,13 +787,13 @@ class TestFan(Base):
         self.hw.fan_step(now=1000)
         self.assertEqual(self.pwm(), 255)
         self.assertTrue(self.hw.fan_status()["override"])
-        self.temps(junc=96)             # noch nicht weit genug abgekühlt
+        self.temps(junc=96)             # not cooled down far enough yet
         self.hw.fan_step(now=1001)
         self.assertTrue(self.hw.fan_status()["override"])
         self.temps(junc=94)
         self.hw.fan_step(now=1002)
         self.assertFalse(self.hw.fan_status()["override"])
-        self.hw.fan_step(now=1008)      # Spindown abgelaufen
+        self.hw.fan_step(now=1008)      # spin-down elapsed
         self.assertEqual(self.pwm(), round(70 * 255 / 100))
         texts = [e["text"] for e in self.hw.history()["events"]]
         self.assertTrue(any("safety active" in t for t in texts))
@@ -811,16 +811,16 @@ class TestFan(Base):
         self.assertIsNone(self.hw.fan_status()["error"])
 
     def test_driver_rounding_and_ramp_are_not_errors(self):
-        """amdgpu rechnet über ganze Prozent und liefert beim Lesen teils den aktuellen statt des gesetzten Werts."""
+        """amdgpu computes in whole percent and sometimes returns the current value instead of the set one when reading."""
         orig = self.io.read
         mode = {"kind": "round"}
 
         def reading(path):
             v = orig(path)
             if path.endswith("/pwm1") and mode["kind"] == "round":
-                return str(int(int(int(v) * 100 / 255) * 255 / 100))     # Hin- und Rückrechnung über ganze %
+                return str(int(int(int(v) * 100 / 255) * 255 / 100))     # conversion back and forth via whole %
             if path.endswith("/pwm1") and mode["kind"] == "lag":
-                return "0"                                               # Anlauf: Treiber meldet noch den alten Wert
+                return "0"                                               # start-up: the driver still reports the old value
             return v
 
         for kind in ("round", "lag"):
@@ -851,14 +851,14 @@ class TestFan(Base):
             self.assertFalse(r["ok"])
             self.assertIn("Fan", r["errors"][0])
             self.assertEqual(self.enable(), "2")
-            self.hw.fan_step(now=time_now_plus(5))        # Wartezeit noch nicht abgelaufen
+            self.hw.fan_step(now=time_now_plus(5))        # wait time not elapsed yet
         self.hw.fan_step(now=time_now_plus(60))
         self.assertEqual(self.enable(), "1")
         self.assertIsNone(self.hw.fan_status()["error"])
 
     def test_external_reset_to_auto_is_taken_back(self):
         self.start(edge=41)
-        self.io.files[HWMON + "/pwm1_enable"] = "2"      # z. B. nach Standby
+        self.io.files[HWMON + "/pwm1_enable"] = "2"      # e.g. after standby
         self.hw.fan_step(now=1000)
         self.assertEqual(self.enable(), "1")
         self.assertEqual(self.pwm(), round(51 * 255 / 100))
@@ -869,7 +869,7 @@ class TestFan(Base):
         self.assertEqual(self.enable(), "2")
         self.assertIsNone(self.hw.fan_status()["curve"])
 
-    # ---- Profile
+    # ---- Profiles
 
     def test_profile_with_fan(self):
         self.temps(41, 43)
@@ -878,7 +878,7 @@ class TestFan(Base):
         self.assertTrue(r["ok"], r)
         self.assertEqual((self.enable(), r["active_profile"]), ("1", "Leise"))
         self.assertEqual(self.hw.info()["profiles"]["Leise"]["fan"]["curve"], CURVE)
-        r = self.hw.apply_profile("KI")                  # Profil ohne Lüfter: Automatik
+        r = self.hw.apply_profile("KI")                  # profile without fan: automatic
         self.assertEqual((self.enable(), r["active_profile"]), ("2", "KI"))
         self.hw.apply_profile("Leise")
         r = self.hw.apply_profile("Standard")
@@ -890,7 +890,7 @@ class TestFan(Base):
         self.hw.save_profile("Leise", {"fan": {"curve": CURVE}})
         self.hw.apply_profile("Leise")
         self.assertEqual(self.hw.status()["active_profile"], "Leise")
-        self.hw.set_fan({"mode": "auto"})            # nur Lüfter-Profil: ohne Kurve entspricht es Standard
+        self.hw.set_fan({"mode": "auto"})            # fan-only profile: without a curve it is equivalent to Standard
         self.assertEqual(self.hw.status()["active_profile"], "Standard")
         self.hw.set_fan({"curve": [[30, 40], [80, 90]]})
         self.assertIsNone(self.hw.status()["active_profile"])
@@ -962,7 +962,7 @@ class TestFan(Base):
             with self.assertRaises(PermissionError, msg=p):
                 self.hw._write(p, "1")
 
-    # ---- Schleife und Watchdog
+    # ---- Loop and watchdog
 
     def test_fan_loop_thread(self):
         self.start(edge=41)
@@ -993,7 +993,7 @@ class TestFan(Base):
                 srv.close()
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("NOTIFY_SOCKET", None)
-            hwpaneld.sd_notify("WATCHDOG=1")      # ohne Socket: keine Wirkung, kein Fehler
+            hwpaneld.sd_notify("WATCHDOG=1")      # without a socket: no effect, no error
 
 
 def time_now_plus(seconds):
@@ -1011,7 +1011,7 @@ class TestSocketAndCli(Base):
         self.th.start()
         self._old = hwpanelctl.SOCKET_PATH
         hwpanelctl.SOCKET_PATH = self.path
-        # die Erwartungen dieser Tests sind deutsch: Sprache festnageln, unabhängig von der Umgebung
+        # the expectations of these tests are German: pin the language, independent of the environment
         self._env = mock.patch.dict(os.environ, {"HWPANEL_LANG": "de"})
         self._env.start()
         i18n.set_language("de")
@@ -1094,7 +1094,7 @@ class TestSocketAndCli(Base):
         self.assertIn("Lüfter-Regelung  Sensor edge", out)
         rc, out = self.run_cli("info")
         self.assertIn("Lüfter Sensoren: edge, junction, mem", out)
-        rc, out = self.run_cli("fan", "curve", "30:0,90:40")           # verletzt die Schutzregeln
+        rc, out = self.run_cli("fan", "curve", "30:0,90:40")           # violates the protection rules
         self.assertEqual(rc, 1)
         self.assertIn("Schutzregel", out)
         rc, out = self.run_cli("fan", "auto")

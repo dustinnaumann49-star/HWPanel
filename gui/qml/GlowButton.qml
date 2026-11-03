@@ -7,8 +7,8 @@ Item {
     property bool primary: false
     property bool active: false
     property bool compact: false
-    property string hint: ""       // Erklärung beim Darüberfahren (leer = keine)
-    property bool hintOff: false   // nach einem Klick ausgeblendet, bis die Maus den Knopf verlässt
+    property string hint: ""       // Explanation on hover (empty = none)
+    property bool hintOff: false   // hidden after a click until the mouse leaves the button
     property color textColor: lit ? "white" : Theme.text
     signal clicked()
 
@@ -19,7 +19,7 @@ Item {
     scale: mouse.pressed ? 0.97 : 1
     Behavior on scale { NumberAnimation { duration: 80 } }
 
-    // Schein
+    // Glow
     Rectangle {
         anchors.fill: body; anchors.margins: -4; radius: body.radius + 4; color: Theme.red
         opacity: root.lit ? (mouse.containsMouse ? 0.32 : 0.22) : (mouse.containsMouse ? 0.14 : 0)
@@ -39,7 +39,7 @@ Item {
         }
         border.width: 1
         border.color: root.lit ? Theme.redLight : (mouse.containsMouse ? Theme.red : Theme.buttonBorder)
-        // Glanzstreifen
+        // Gloss strip
         Rectangle {
             x: 7; y: 2; width: parent.width - 14; height: parent.height / 2 - 2; radius: height
             gradient: Gradient {

@@ -1,7 +1,7 @@
 import QtQuick
 import "."
 
-// Glasige Karte: schwarzer Verlauf, roter Schein, Glanzlicht oben links, roter Rand.
+// Glassy card: black gradient, red glow, highlight at the top left, red border.
 Item {
     id: root
     property real radius: Theme.radius
@@ -12,7 +12,7 @@ Item {
 
     readonly property real shown: active ? Math.min(1, glow * 1.9) : glow
 
-    // Roter Schein: gestapelte, halbtransparente Rechtecke (läuft im Szenengraph, kostet kaum Zeit)
+    // Red glow: stacked, semi-transparent rectangles (runs in the scene graph, costs almost no time)
     Item {
         anchors.fill: parent
         anchors.topMargin: 6
@@ -51,14 +51,14 @@ Item {
                 ctx.closePath()
             }
             var m = 0
-            // Körper
+            // Body
             var body = ctx.createLinearGradient(0, m, 0, m + h)
             body.addColorStop(0, Theme.cardTop)
             body.addColorStop(1, Theme.cardBottom)
             rr(m, m, w, h, r)
             ctx.fillStyle = body
             ctx.fill()
-            // Glanz (Spiegelung) oben links
+            // Gloss (reflection) at the top left
             ctx.save()
             rr(m, m, w, h, r)
             ctx.clip()
@@ -76,7 +76,7 @@ Item {
             ctx.fillStyle = hl
             ctx.fillRect(m, m, w, 1.5)
             ctx.restore()
-            // Rand
+            // Border
             var edge = ctx.createLinearGradient(0, m, 0, m + h)
             edge.addColorStop(0, Theme.rgba(Theme.redSoft, 0.85))
             edge.addColorStop(1, Theme.rgba(Theme.red, root.active ? 0.7 : 0.3))

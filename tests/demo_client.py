@@ -1,8 +1,8 @@
-"""Demo-Daemon für die GUI: echte HW-Logik auf FakeIO mit simuliertem Verlauf.
+"""Demo daemon for the GUI: real HW logic on FakeIO with a simulated history.
 
-Wird nur zum Rendern und Ausprobieren der Oberfläche ohne Hardware benutzt.
-Der Verlauf umfasst 3600 s mit Leerlauf, Gaming-Last, KI-Last und einem
-Ausreißer unter Standard, jeweils mit Abkühlphase.
+Only used for rendering and trying out the interface without hardware.
+The history spans 3600 s with idle, gaming load, AI load and an
+outlier under Standard, each with a cool-down phase.
 """
 
 import random
@@ -35,7 +35,7 @@ Memory Device
 \tConfigured Memory Speed: 2133 MT/s
 """
 
-# (Start, Ende, Lastart, Profil-Ereignis am Start)
+# (start, end, kind of load, profile event at the start)
 SCHEDULE = [
     (0, 600, "idle", None),
     (600, 1260, "gaming", "Gaming"),
@@ -46,7 +46,7 @@ SCHEDULE = [
     (3450, 3600, "idle", None),
 ]
 LOADS = {
-    #           GPU W, busy %, Takt, CPU W, CPU %, CPU MHz
+    #           GPU W, busy %, clock, CPU W, CPU %, CPU MHz
     "idle":   (11,   3,   30,   9,   4,   900),
     "gaming": (186,  97,  2640, 58,  58,  4100),
     "ki":     (142,  100, 2300, 24,  18,  2400),
@@ -59,11 +59,11 @@ class DemoClient:
         self.rnd = random.Random(seed)
         self.tmp = tempfile.TemporaryDirectory()
         self.io = FakeIO()
-        self.io.files["/sys/class/drm/card1/device/hwmon"] = ""  # unbenutzt
+        self.io.files["/sys/class/drm/card1/device/hwmon"] = ""  # unused
         self.hw = hwpaneld.HW(self.io, self.tmp.name, probe_dmi=False)
         self.hw.ram_modules = hwpaneld.parse_dmidecode(DMI)
         self.hw.resume_delay = 0
-        # Beispielprofile nur für die Demo; im echten Betrieb legt der Benutzer die Kurven selbst an
+        # Example profiles for the demo only; in real operation the curves are created by the user
         self.hw.save_profile("Gaming", {"gpu": {}, "cpu": {"epp": "performance"},
                                         "fan": {"sensor": "edge", "curve": [[30, 40], [50, 55], [65, 70], [80, 90]]}})
         self.hw.save_profile("KI", {"gpu": {"sclk_max": 2300}, "cpu": {},
@@ -103,7 +103,7 @@ class DemoClient:
         f, r = self.io.files, self.rnd
         gp, busy, clk, cp, load, cmhz = LOADS[kind]
         if kind not in ("idle",):
-            # Einschwingen und gelegentliche Einbrüche (Ladebildschirm, Menü)
+            # settling and occasional dips (loading screen, menu)
             if st["dip"] > 0:
                 st["dip"] -= 1
                 gp, busy, load = 70, 40, 15
@@ -140,7 +140,7 @@ class DemoClient:
         if f[HWMON + "/pwm1_enable"] == "1":
             pwm = int(f[HWMON + "/pwm1"])
             rpm = 0 if pwm < 38 else int(600 + pwm / 255 * 2400)
-        else:  # Treiberautomatik: Lüfter steht im Leerlauf und läuft erst ab ca. 47 °C an
+        else:  # driver automatic: the fan is off at idle and only starts up from about 47 °C
             rpm = 0 if edge < 47 else int(700 + (edge - 47) * 52)
             f[HWMON + "/pwm1"] = str(int(rpm / 3000 * 255))
         f[HWMON + "/fan1_input"] = str(rpm)
@@ -165,13 +165,13 @@ class DemoClient:
     def close(self):
         self.tmp.cleanup()
 
-    # ---- Schnittstelle wie DaemonClient
+    # ---- Interface like DaemonClient
 
     def call(self, req):
         try:
             return self.hw.handle(req)
         except (ValueError, TypeError) as e:
-            return hwpaneld.error_response(e)   # wie der echte Server: Text und Meldung
+            return hwpaneld.error_response(e)   # like the real server: text and message
 
 
 if __name__ == "__main__":

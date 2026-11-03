@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Installiert hwpaneld (Daemon), hwpanelctl (CLI) und hwpanel-gui (Fenster + Tray).
-#   sudo ./install.sh                  installieren
-#   sudo ./install.sh --disable-lact   installieren und lactd deaktivieren
-#   sudo ./install.sh --uninstall      entfernen (Daten in /var/lib/hwpanel bleiben)
+# Installs hwpaneld (daemon), hwpanelctl (CLI) and hwpanel-gui (window + tray).
+#   sudo ./install.sh                  install
+#   sudo ./install.sh --disable-lact   install and disable lactd
+#   sudo ./install.sh --uninstall      remove (data in /var/lib/hwpanel stays)
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# Sprache der Meldungen: HWPANEL_LANG, sonst die Systemsprache (Rangfolge wie in hwpanel_i18n.py).
-# Es gibt Deutsch und Englisch; alles andere (und C/POSIX) ergibt Englisch.
+# Language of the messages: HWPANEL_LANG, otherwise the system language (same order of precedence as in hwpanel_i18n.py).
+# German and English exist; everything else (and C/POSIX) gives English.
 msg_lang=en
 pick="${HWPANEL_LANG:-auto}"
 if [[ "${pick,,}" == auto ]]; then
@@ -26,7 +26,7 @@ else
     case "${pick,,}" in de|de_*|de.*|de@*) msg_lang=de ;; esac
 fi
 
-# say "englischer Text" "deutscher Text"
+# say "English text" "German text"
 say() { if [[ $msg_lang == de ]]; then printf '%s\n' "$2"; else printf '%s\n' "$1"; fi; }
 sayerr() { say "$@" >&2; }
 
@@ -79,12 +79,12 @@ install -m 644 hwpanel_i18n.py "$LIB/hwpanel_i18n.py"
 rm -rf "$LIB/locales"
 cp -r locales "$LIB/locales"
 chmod -R a+rX "$LIB/locales"
-# Über den Link findet Python hwpanel_i18n.py neben dem echten Skript (ersetzt auch eine ältere, einzelne Datei)
+# Through the link Python finds hwpanel_i18n.py next to the real script (also replaces an older, single file)
 ln -sf "$LIB/hwpanelctl.py" "$BIN"
 install -m 644 hwpanel.service "$UNIT"
 [[ -f "$DATA/profiles.json" ]] || install -m 644 profiles.json "$DATA/profiles.json"
 
-# GUI (Fenster + Tray-Icon)
+# GUI (window + tray icon)
 if [[ -d gui ]]; then
     rm -rf "$LIB/gui"
     cp -r gui "$LIB/gui"
@@ -114,7 +114,7 @@ DESKTOP_EOF
     fi
 fi
 
-# Socket-Gruppe: primäre Gruppe des aufrufenden Benutzers, damit hwpanelctl und GUI ohne sudo laufen
+# Socket group: primary group of the calling user, so that hwpanelctl and the GUI run without sudo
 if [[ ! -f "$DATA/config.json" ]]; then
     GROUP_NAME=root
     if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
@@ -123,7 +123,7 @@ if [[ ! -f "$DATA/config.json" ]]; then
     printf '{"autostart_profile": null, "socket_group": "%s", "gpu_card": null}\n' "$GROUP_NAME" > "$DATA/config.json"
 fi
 
-# lactd schreibt in dieselben sysfs-Dateien und würde die Werte überschreiben
+# lactd writes to the same sysfs files and would overwrite the values
 if systemctl is-enabled --quiet lactd.service 2>/dev/null || systemctl is-active --quiet lactd.service 2>/dev/null; then
     if [[ "${1:-}" == "--disable-lact" ]]; then
         systemctl disable --now lactd.service

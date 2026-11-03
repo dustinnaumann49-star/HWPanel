@@ -2,14 +2,14 @@ import QtQuick
 import "."
 import "Fmt.js" as Fmt
 
-// Grafischer Editor für die Lüfterkurve: Punkte ziehen, Doppelklick fügt einen Punkt hinzu.
-// Die Kurve bleibt dabei immer gültig (Temperaturen aufsteigend, Prozentwerte nicht fallend).
+// Graphical editor for the fan curve: drag points, double-click adds a point.
+// The curve always stays valid (temperatures ascending, percentages non-decreasing).
 Item {
     id: root
     property var points: []            // [[°C, %], ...]
     property real tMin: 20
     property real tMax: 100
-    property real tempNow: NaN         // aktuelle Sensortemperatur (Live-Marker)
+    property real tempNow: NaN         // current sensor temperature (live marker)
     property int minPoints: 2
     property int maxPoints: 10
     property int selected: -1
@@ -100,7 +100,7 @@ Item {
     }
 
     function repaint() { if (visible) cv.requestPaint() }
-    // direkt auf die Leinwand gezeichneter Text: Änderung der Sprache löst ein Neuzeichnen aus
+    // text drawn directly on the canvas: a language change triggers a repaint
     readonly property string liveText: qsTr("now %1 °C → %2 %")
     onLiveTextChanged: cv.requestPaint()
     onPointsChanged: repaint()
@@ -120,7 +120,7 @@ Item {
             var L = root.pL, R = width - root.pR, T = root.pT, B = height - root.pB
             if (R - L < 40 || B - T < 40) return
 
-            // Raster und Beschriftung
+            // Grid and labels
             ctx.font = "11px sans-serif"
             ctx.fillStyle = "#8a7777"
             ctx.strokeStyle = Theme.rgba(Theme.tint, 0.13)
@@ -143,7 +143,7 @@ Item {
             function X(v) { return root.xOf(Math.max(root.tMin, Math.min(root.tMax, v))) }
             function Y(v) { return root.yOf(v) }
 
-            // Kurvenpfad: links und rechts waagerecht bis zum Rand
+            // Curve path: horizontal to the edge on the left and right
             function path() {
                 ctx.beginPath()
                 ctx.moveTo(L, Y(pts[0][1]))
@@ -151,7 +151,7 @@ Item {
                 ctx.lineTo(R, Y(pts[pts.length - 1][1]))
             }
 
-            // Fläche unter der Kurve
+            // Area under the curve
             ctx.save()
             ctx.globalAlpha = root.editable ? 1 : 0.4
             path()
@@ -162,7 +162,7 @@ Item {
             ctx.fillStyle = g
             ctx.fill()
 
-            // Leuchtende Linie
+            // Glowing line
             path()
             ctx.lineJoin = "round"
             ctx.lineWidth = 9
@@ -176,7 +176,7 @@ Item {
             ctx.stroke()
             ctx.restore()
 
-            // Live-Marker: aktuelle Temperatur und Zielwert der Kurve
+            // Live marker: current temperature and target value of the curve
             if (root.editable && root.tempNow > 0 && !isNaN(root.liveTarget)) {
                 var lx = X(root.tempNow), ly = Y(root.liveTarget)
                 ctx.save()
@@ -195,7 +195,7 @@ Item {
                 ctx.font = "11px sans-serif"
                 var tw = ctx.measureText(txt).width
                 var bx = (lx + 8 + tw + 8 > R) ? lx - tw - 12 : lx + 8
-                var by = T + 4   // oben im Diagramm, damit Punkte und Kurve frei bleiben
+                var by = T + 4   // at the top of the chart, so that points and curve stay free
                 ctx.fillStyle = "rgba(6,3,5,0.82)"
                 ctx.fillRect(bx - 4, by, tw + 8, 18)
                 ctx.fillStyle = "#ffffff"
@@ -205,7 +205,7 @@ Item {
         }
     }
 
-    // Anfasser
+    // Handles
     Repeater {
         model: root.points.length
         Item {
@@ -226,7 +226,7 @@ Item {
                 color: sel ? "#ffffff" : Theme.seriesGpuC
                 border.width: 2; border.color: Theme.red
             }
-            // Wert am Punkt
+            // Value at the point
             Rectangle {
                 visible: sel || hov
                 x: parent.width / 2 - width / 2

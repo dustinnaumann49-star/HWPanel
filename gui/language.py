@@ -1,4 +1,4 @@
-"""Sprache der GUI: Einstellung (Automatisch oder Kürzel), Qt-Übersetzer für qsTr() und Umschalten zur Laufzeit."""
+"""Language of the GUI: setting (automatic or code), Qt translator for qsTr() and switching at runtime."""
 
 import json
 import os
@@ -13,10 +13,10 @@ CONFIG_FILE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) /
 
 
 class CatalogTranslator(QTranslator):
-    """Qt-Übersetzer: schlägt den Quelltext von qsTr() im Katalog der aktuellen Sprache nach."""
+    """Qt translator: looks up the source text of qsTr() in the catalog of the current language."""
 
     def translate(self, context, sourceText, disambiguation=None, n=-1):
-        return i18n.catalog().get(sourceText)   # None heißt: kein Eintrag, der Quelltext bleibt
+        return i18n.catalog().get(sourceText)   # None means: no entry, the source text stays
 
     def isEmpty(self):
         return False
@@ -52,30 +52,30 @@ class Language(QObject):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(json.dumps({"language": self._setting}) + "\n", encoding="utf-8")
         except OSError:
-            pass   # die Wahl gilt trotzdem bis zum Beenden
+            pass   # the choice still applies until the program exits
 
     def close(self):
         if self._translator is not None:
             QCoreApplication.removeTranslator(self._translator)
             self._translator = None
 
-    # ---- Eigenschaften für QML
+    # ---- Properties for QML
 
     @Property(str, notify=languageChanged)
     def setting(self):
-        """Die Wahl: 'auto' oder ein Sprachkürzel."""
+        """The choice: 'auto' or a language code."""
         return self._setting
 
     @Property(str, notify=languageChanged)
     def code(self):
-        """Die tatsächlich genutzte Sprache."""
+        """The language actually in use."""
         return self._code
 
     @Property("QVariantList", constant=True)
     def languages(self):
         return self._languages
 
-    # ---- Aktionen aus QML
+    # ---- Actions from QML
 
     @Slot(str)
     def setLanguage(self, setting):
@@ -91,7 +91,7 @@ class Language(QObject):
 
     @Slot(QObject)
     def retranslate(self, item):
-        """Wertet alle qsTr()-Texte der Engine neu aus, zu der das QML-Objekt gehört."""
+        """Re-evaluates all qsTr() texts of the engine that the QML object belongs to."""
         engine = qmlEngine(item)
         if engine is not None:
             engine.retranslate()

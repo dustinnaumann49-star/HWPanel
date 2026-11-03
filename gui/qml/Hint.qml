@@ -2,13 +2,13 @@ import QtQuick
 import QtQuick.Controls.Basic
 import "."
 
-// Erklärung beim Darüberfahren, im Stil der Oberfläche. Der Besitzer setzt `wanted`,
-// gezeigt wird mit kurzer Verzögerung unter dem Elternelement (oder darüber, wenn unten kein Platz ist).
+// Explanation on hover, in the style of the UI. The owner sets `wanted`,
+// it is shown after a short delay below the parent element (or above it if there is no room below).
 ToolTip {
     id: tip
     property bool wanted: false
 
-    // so breit wie der Text, höchstens 300 px (längere Texte brechen um)
+    // as wide as the text, at most 300 px (longer texts wrap)
     contentWidth: Math.min(300, Math.ceil(metrics.advanceWidth) + 2)
     padding: 14
     margins: 12

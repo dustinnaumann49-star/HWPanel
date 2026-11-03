@@ -1,4 +1,4 @@
-"""Backend der hwpanel-GUI: Daemon-Client im Hintergrundthread und Datenaufbereitung für QML."""
+"""Backend of the hwpanel GUI: daemon client in a background thread and data preparation for QML."""
 
 import collections
 import json
@@ -20,7 +20,7 @@ KEYS = ("g_edge", "g_junc", "g_mem", "g_pow", "g_busy", "g_clk", "g_fan", "g_fan
         "c_temp", "c_pow", "c_load", "c_clk")
 MAX_POINTS = 480
 WINDOWS = (60, 300, 900, 3600)
-PROFILE_NAME = re.compile(r"\w[\w .\-]{0,31}")   # wie HW._check_name im Daemon
+PROFILE_NAME = re.compile(r"\w[\w .\-]{0,31}")   # like HW._check_name in the daemon
 AUTOSTART_FILE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "autostart" / "hwpanel-gui.desktop"
 AUTOSTART_TEXT = """[Desktop Entry]
 Type=Application
@@ -35,7 +35,7 @@ X-GNOME-Autostart-enabled=true
 
 
 class DaemonClient:
-    """Blockierender Client, eine Verbindung pro Aufruf."""
+    """Blocking client, one connection per call."""
 
     def __init__(self, path=SOCKET_PATH):
         self.path = path
@@ -60,7 +60,7 @@ class DaemonClient:
 
 
 class Worker(QThread):
-    """Fragt den Daemon jede Sekunde ab und führt Befehle aus der Warteschlange aus."""
+    """Queries the daemon every second and runs commands from the queue."""
 
     status = Signal(object)
     info = Signal(object)
@@ -77,7 +77,7 @@ class Worker(QThread):
         self._need_info = True
 
     def submit(self, label, req, then=None):
-        """then(resp) liefert Folgebefehle [(Text, Anfrage), ...], die erst nach der Antwort laufen."""
+        """then(resp) returns follow-up commands [(text, request), ...] that only run after the response."""
         self.q.put((label, req, then))
 
     def stop(self):
@@ -122,7 +122,7 @@ class Worker(QThread):
                         try:
                             resp = self.client.call(req)
                         except (OSError, ValueError) as e:
-                            # ohne Meldung sähe es aus, als wäre der Klick wirkungslos gewesen
+                            # without a message it would look as if the click had had no effect
                             self.result.emit(label, {"error": tr("Daemon not responding ({error}). The command may not have been executed.",
                                                                  error=e)})
                             raise
@@ -138,7 +138,7 @@ class Worker(QThread):
 
 
 def _deep(v):
-    """QML liefert Zahlen als float: ganzzahlige Werte (auch in Listen) in int umwandeln."""
+    """QML delivers numbers as float: convert whole-number values (also in lists) to int."""
     if isinstance(v, float) and v.is_integer():
         return int(v)
     if isinstance(v, (list, tuple)):
@@ -191,7 +191,7 @@ class Backend(QObject):
         self._worker.wait(3000)
         self._language.close()
 
-    # ---- Daten vom Worker
+    # ---- Data from the worker
 
     def _set_connected(self, v):
         if v != self._connected:
@@ -226,7 +226,7 @@ class Backend(QObject):
 
     @Slot()
     def _on_language(self):
-        """Texte des Daemons (Ereignisse, Lüfterfehler) werden erst hier übersetzt: noch einmal in der neuen Sprache darstellen."""
+        """Texts of the daemon (events, fan errors) are only translated here: render them again in the new language."""
         self._rebuild_view()
         self.statusChanged.emit()
 
@@ -237,18 +237,18 @@ class Backend(QObject):
             self.toast.emit(error, True)
         elif errors:
             self.toast.emit("; ".join(errors), True)
-        elif label:   # Folgebefehle ohne Text (z. B. Aufräumen beim Umbenennen) melden nur Fehler
+        elif label:   # follow-up commands without text (e.g. cleanup when renaming) only report errors
             notes = message_list(resp, "notes")
             self.toast.emit(label + (" (" + "; ".join(notes) + ")" if notes else ""), False)
 
     @staticmethod
     def _event_text(e, limit=110):
-        """Text eines Ereignisses in der aktuellen Sprache, gekürzt (lange Fehlermeldungen sprengen sonst das Diagramm)."""
+        """Text of an event in the current language, shortened (long error messages would otherwise overflow the chart)."""
         text = message(e["msg"]) if e.get("msg") else e["text"]
         return text if len(text) <= limit else text[:limit - 1] + "…"
 
     def _localized_status(self):
-        """Status des Daemons mit dem Lüfterfehler in der aktuellen Sprache."""
+        """Status of the daemon with the fan error in the current language."""
         fan = self._status.get("fan") if isinstance(self._status, dict) else None
         if fan and fan.get("error_msg"):
             return {**self._status, "fan": {**fan, "error": message(fan["error_msg"])}}
@@ -274,7 +274,7 @@ class Backend(QObject):
         self._view = view
         self.historyChanged.emit()
 
-    # ---- Eigenschaften für QML
+    # ---- Properties for QML
 
     @Property(QObject, constant=True)
     def language(self):
@@ -335,7 +335,7 @@ class Backend(QObject):
     def autostartEnabled(self):
         return AUTOSTART_FILE.exists()
 
-    # ---- Aktionen aus QML
+    # ---- Actions from QML
 
     @Slot(int)
     def setHistoryWindow(self, seconds):
@@ -345,7 +345,7 @@ class Backend(QObject):
             self._rebuild_view()
 
     def _display(self, name):
-        """Anzeigename: Das eingebaute Profil heißt intern "Standard", in der GUI je nach Sprache "Default"."""
+        """Display name: the built-in profile is called "Standard" internally, in the GUI "Default" depending on the language."""
         return tr("Default") if name == self._info.get("builtin_profile", "Standard") else name
 
     @Slot(str)
@@ -380,20 +380,20 @@ class Backend(QObject):
                             {"cmd": "save_profile", "name": name, "settings": settings}, follow_up)
 
     def _rename_follow_up(self, name, old):
-        """Folgebefehle beim Umbenennen: erst nach erfolgreichem Speichern, sonst bleibt das alte Profil."""
+        """Follow-up commands when renaming: only after successful saving, otherwise the old profile stays."""
         moves_startup = self.startupProfile == old
 
         def after_save(resp):
             if not resp.get("ok"):
                 return []
-            # Der Daemon löscht beim Entfernen des alten Profils auch dessen Autostart-Eintrag.
+            # When removing the old profile, the daemon also deletes its autostart entry.
             moved = [("", {"cmd": "set_autostart", "profile": name})] if moves_startup else []
             return moved + [("", {"cmd": "delete_profile", "name": old})]
         return after_save
 
     @Slot(str, str, result=str)
     def profileNameError(self, name, editing):
-        """Grund, warum der Name nicht gespeichert werden kann; leer = in Ordnung (oder noch leer)."""
+        """Reason why the name cannot be saved; empty = fine (or still empty)."""
         name = name.strip()
         if not name:
             return ""
@@ -402,7 +402,7 @@ class Backend(QObject):
         builtin = self._info.get("builtin_profile", "Standard")
         if name.lower() == builtin.lower():
             return tr("'{name}' is reserved", name=builtin)
-        if name != editing and name.lower() in ("default", tr("Default").lower()):   # so heißt das eingebaute Profil in der GUI
+        if name != editing and name.lower() in ("default", tr("Default").lower()):   # this is what the built-in profile is called in the GUI
             return tr("'{name}' is reserved", name=name)
         if name != editing and name in (self._info.get("profiles") or {}):
             return tr("A profile with this name already exists")

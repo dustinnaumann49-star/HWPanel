@@ -1,6 +1,6 @@
-"""Tests für das GUI-Backend (ohne Anzeige, mit Demo-Daemon auf FakeIO).
+"""Tests for the GUI backend (without display, with the demo daemon on FakeIO).
 
-Benötigt PySide6, sonst werden die Tests übersprungen.
+Requires PySide6, otherwise the tests are skipped.
 """
 
 import os
@@ -23,13 +23,13 @@ try:
 except ImportError:  # pragma: no cover
     HAVE_QT = False
 
-if HAVE_QT:   # Fehler in den Projektmodulen sollen auffallen und nicht als "übersprungen" enden
+if HAVE_QT:   # Errors in the project modules should stand out and not end up as "skipped"
     import backend as be
     from demo_client import DemoClient
     from language import Language
     from test_hwpaneld import HWMON
 
-DE = {"LANG": "de_DE.UTF-8"}   # Die Texte der Tests sind deutsch: Sprache festnageln, unabhängig von der Umgebung
+DE = {"LANG": "de_DE.UTF-8"}   # The texts of the tests are German: pin the language, independent of the environment
 
 
 def pump(cond, timeout=6.0):
@@ -59,7 +59,7 @@ class BackendTests(unittest.TestCase):
         self.be.shutdown()
         self.client.close()
 
-    # ---- Daten
+    # ---- Data
 
     def test_initial_state(self):
         self.assertEqual(self.be.profileNames, ["Standard", "Gaming", "KI"])
@@ -72,7 +72,7 @@ class BackendTests(unittest.TestCase):
         b._samples.clear()
         base = 1_000_000.0
         samples = [{"t": base + i, **{k: 50.0 for k in be.KEYS}} for i in range(3600)]
-        samples[1800]["g_junc"] = 99.0  # kurze Spitze
+        samples[1800]["g_junc"] = 99.0  # short peak
         b._on_history({"samples": samples, "events": []})
         b.setHistoryWindow(3600)
         v = b.history
@@ -104,7 +104,7 @@ class BackendTests(unittest.TestCase):
         b._on_history({"samples": samples, "events": []})
         self.assertEqual(b.history["g_edge"], [None] * 5)
 
-    # ---- Aktionen
+    # ---- Actions
 
     def test_apply_profile_updates_status_and_toast(self):
         self.be.applyProfile("KI")
@@ -119,7 +119,7 @@ class BackendTests(unittest.TestCase):
         self.be.applyProfile("KI")
         self.assertTrue(pump(lambda: any(t == "Profile KI applied" and not e for t, e in self.toasts)))
         self.toasts.clear()
-        self.be.applyProfile("Standard")   # das eingebaute Profil heißt auf Englisch "Default"
+        self.be.applyProfile("Standard")   # the built-in profile is called "Default" in English
         self.assertTrue(pump(lambda: any(t == "Profile Default applied" and not e for t, e in self.toasts)))
         self.be.language.setLanguage("de")
         self.toasts.clear()
@@ -140,7 +140,7 @@ class BackendTests(unittest.TestCase):
     def test_history_events_follow_the_language_live(self):
         self.be.applyProfile("KI")
         self.assertTrue(pump(lambda: self.be.activeProfile == "KI"))
-        self.client.hw._tick()   # der Demo-Daemon legt keine neuen Proben an; Ereignisse zeigt das Diagramm erst bis zur letzten Probe
+        self.client.hw._tick()   # the demo daemon creates no new samples; the chart only shows events up to the last sample
         self.assertTrue(pump(lambda: any(e["text"] == "Profil KI" for e in self.be.history["events"])))
         self.be.language.setLanguage("en")
         self.assertTrue(any(e["text"] == "Profile KI" for e in self.be.history["events"]))
@@ -168,7 +168,7 @@ class BackendTests(unittest.TestCase):
         self.assertTrue(pump(lambda: self.be.status["fan"]["error"] == "Sensor nicht lesbar"))
         self.be.language.setLanguage("en")
         self.assertEqual(self.be.status["fan"]["error"], "sensor not readable")
-        self.assertEqual(self.be.status["fan"]["error_msg"]["tpl"], "sensor not readable")   # Rohdaten bleiben erhalten
+        self.assertEqual(self.be.status["fan"]["error_msg"]["tpl"], "sensor not readable")   # raw data is kept
 
     def test_long_event_text_is_shortened(self):
         text = be.Backend._event_text({"t": 1, "text": "x" * 300})
@@ -195,7 +195,7 @@ class BackendTests(unittest.TestCase):
         self.assertTrue(pump(lambda: self.be.status["settings"]["cpu"].get("max_mhz") == 3000))
         self.assertIsNone(self.be.activeProfile or None)
         self.toasts.clear()
-        self.be.setManual({"sclk_max": 99999}, {}, {})  # über dem Standard: muss abgelehnt werden
+        self.be.setManual({"sclk_max": 99999}, {}, {})  # above the default: must be rejected
         self.assertTrue(pump(lambda: any(e for _, e in self.toasts)))
         self.assertEqual(self.be.status["settings"]["gpu"]["sclk_max"], 2200)
 
@@ -221,9 +221,9 @@ class BackendTests(unittest.TestCase):
         profiles = self.client.hw.profiles
         before = dict(profiles["KI"])
         self.toasts.clear()
-        self.be.saveProfile("Standard", {"sclk_max": 2000}, {}, {}, "KI")   # reservierter Name
+        self.be.saveProfile("Standard", {"sclk_max": 2000}, {}, {}, "KI")   # reserved name
         self.assertTrue(pump(lambda: any(e for _, e in self.toasts)))
-        pump(lambda: False, timeout=0.5)   # Zeit für einen (fälschlichen) Löschbefehl
+        pump(lambda: False, timeout=0.5)   # time for an (erroneous) delete command
         self.assertEqual(profiles.get("KI"), before)
         self.assertIn("KI", self.be.profileNames)
 
@@ -256,7 +256,7 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(err("KI", "KI"), "", "Bearbeiten ohne Umbenennen")
         for bad, editing in (("Leise (Nacht)", ""), ("standard", ""), ("KI", ""),
                              ("KI", "Gaming"), ("x" * 33, ""), (".punkt", ""),
-                             ("Default", ""), ("default", "")):   # so heißt das eingebaute Profil auf Englisch
+                             ("Default", ""), ("default", "")):   # this is what the built-in profile is called in English
             self.assertNotEqual(err(bad, editing), "", bad)
         self.assertEqual(err("Default", "Default"), "", "ein schon vorhandenes Profil lässt sich weiter bearbeiten")
 
@@ -278,14 +278,14 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(self.be.status["fan"]["sensor"], "junction")
         self.assertEqual(self.be.status["settings"]["fan"]["curve"], [[40, 35], [70, 70], [90, 100]])
         self.assertEqual(self.client.io.files[HWMON + "/pwm1_enable"], "1")
-        # leere Fan-Angabe = Automatik
+        # empty fan setting = automatic
         self.be.setManual({}, {}, {})
         self.assertTrue(pump(lambda: self.be.status["fan"]["mode"] == "auto"))
         self.assertIsNone(self.be.status["settings"]["fan"])
 
     def test_invalid_fan_curve_is_rejected(self):
         self.toasts.clear()
-        # bei 80 °C nur 40 %: verletzt die Schutzregel (mind. 50 %)
+        # at 80 °C only 40 %: violates the protection rule (min. 50 %)
         self.be.setManual({}, {}, {"sensor": "edge", "curve": [[30, 20], [90, 40]]})
         self.assertTrue(pump(lambda: any(e for _, e in self.toasts)))
         self.assertEqual(self.be.status["fan"]["mode"], "auto")
@@ -370,7 +370,7 @@ class BackendTests(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
 class RealSocketTests(unittest.TestCase):
-    """Backend gegen den echten Daemon-Server über einen Unix-Socket."""
+    """Backend against the real daemon server over a Unix socket."""
 
     def test_backend_over_unix_socket(self):
         import threading
@@ -387,7 +387,7 @@ class RealSocketTests(unittest.TestCase):
                 self.assertTrue(pump(lambda: b.connected and b.info and len(b.history["t"]) >= 60))
                 b.applyProfile("KI")
                 self.assertTrue(pump(lambda: b.activeProfile == "KI"))
-                # inkrementelles Nachladen: keine doppelten Zeitstempel
+                # incremental reload: no duplicate timestamps
                 ts = b.history["t"]
                 self.assertEqual(len(ts), len(set(ts)))
             finally:
@@ -424,7 +424,7 @@ class TrayTests(unittest.TestCase):
             self.assertEqual(checked, ["Standard"])
             self.assertIn("Fenster öffnen", [a.text() for a in tray.menu.actions()])
             self.assertIn("GPU", tray.tray.toolTip())
-            # Profilwechsel über das Menü
+            # profile change via the menu
             ki = [a for a in tray.menu.actions() if a.text() == "KI"][0]
             ki.trigger()
             self.assertTrue(pump(lambda: b.activeProfile == "KI"))
@@ -458,11 +458,11 @@ class TrayTests(unittest.TestCase):
             self.assertEqual(texts()[:3], ["Standard", "Gaming", "KI"])
             self.assertIn("Profil: Standard", tray.tray.toolTip())
             b.language.setLanguage("en")
-            # das eingebaute Profil heißt in der Oberfläche "Default", angewendet wird weiter "Standard"
+            # in the UI the built-in profile is called "Default", but "Standard" is still what gets applied
             self.assertEqual(texts()[:3], ["Default", "Gaming", "KI"])
             self.assertIn("Open window", texts())
             self.assertIn("Quit", texts())
-            pump(lambda: False, timeout=1.3)   # nächste Aktualisierung des Tooltips
+            pump(lambda: False, timeout=1.3)   # next update of the tooltip
             self.assertIn("Profile: Default", tray.tray.toolTip())
             self.assertIn("Fan", tray.tray.toolTip())
             default = tray.menu.actions()[0]

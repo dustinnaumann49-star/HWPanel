@@ -1,6 +1,6 @@
-"""Tests für die Sprachwahl der GUI: Einstellung, Qt-Übersetzer und Umschalten zur Laufzeit in QML.
+"""Tests for the language choice of the GUI: setting, Qt translator and switching at runtime in QML.
 
-Benötigt PySide6, sonst werden die Tests übersprungen.
+Requires PySide6, otherwise the tests are skipped.
 """
 
 import json
@@ -33,14 +33,14 @@ except ImportError:  # pragma: no cover
 
 import hwpanel_i18n as i18n  # noqa: E402
 
-if HAVE_QT:   # Fehler in den Projektmodulen sollen auffallen und nicht als "übersprungen" enden
+if HAVE_QT:   # Errors in the project modules should stand out and not end up as "skipped"
     import backend as be
     from demo_client import DemoClient
     from language import Language
 
 DE = {"LANG": "de_DE.UTF-8"}
 EN = {"LANG": "en_US.UTF-8"}
-# Umlaute und typisch deutsche Wörter der Oberfläche: Auf Englisch darf nichts davon sichtbar sein
+# Umlauts and typically German words of the UI: none of them may be visible in English
 GERMAN = re.compile(r"[äöüÄÖÜß]|\b(Lüfter|Takt|Profil|Verlauf|Anwenden|Löschen|Bearbeiten|Standard|Einstellung\w*|Übersicht|"
                     r"Auslastung|Leistung|Temperatur|Speicher|Beenden|Sprache|Kurve|Punkt|Sicherung|Fehler|Belegt|"
                     r"Verfügbar|Abbrechen|Speichern|Aktiv|Last|Erneut|Neues|Eigene|Automatik|Regler|Treiber\w*|Warte|jetzt)\b")
@@ -82,7 +82,7 @@ class LanguageTests(unittest.TestCase):
         self.made.append(lang)
         return lang
 
-    # ---- Wahl der Sprache
+    # ---- Choice of language
 
     def test_auto_follows_system_language(self):
         lang = self.make(DE)
@@ -113,10 +113,10 @@ class LanguageTests(unittest.TestCase):
         lang.languageChanged.connect(lambda: seen.append(1))
         lang.setLanguage("klingon")
         lang.setLanguage("")
-        lang.setLanguage("auto")   # ist schon so
+        lang.setLanguage("auto")   # is already set
         self.assertEqual((lang.setting, lang.code, seen), ("auto", "de", []))
 
-    # ---- Speichern
+    # ---- Saving
 
     def test_choice_is_saved_and_restored(self):
         self.make(DE).setLanguage("en")
@@ -140,7 +140,7 @@ class LanguageTests(unittest.TestCase):
     def test_unwritable_config_does_not_break_switching(self):
         blocker = Path(self.tmp.name) / "datei"
         blocker.write_text("x")
-        lang = self.make(DE, path=blocker / "gui.json")   # Verzeichnis kann nicht angelegt werden
+        lang = self.make(DE, path=blocker / "gui.json")   # directory cannot be created
         lang.setLanguage("en")
         self.assertEqual(lang.code, "en")
 
@@ -149,7 +149,7 @@ class LanguageTests(unittest.TestCase):
         lang.setLanguage("en")
         self.assertFalse(self.cfg.exists())
 
-    # ---- Qt-Übersetzer für qsTr()
+    # ---- Qt translator for qsTr()
 
     def test_qt_translator_translates_and_falls_back_to_source(self):
         lang = self.make(DE)
@@ -162,13 +162,13 @@ class LanguageTests(unittest.TestCase):
     def test_close_removes_translator(self):
         lang = self.make(DE)
         lang.close()
-        lang.close()   # zweimal ist erlaubt
+        lang.close()   # twice is allowed
         self.assertEqual(QCoreApplication.translate("Sidebar", "Overview"), "Overview")
 
 
 @unittest.skipUnless(HAVE_QT, "PySide6 nicht installiert")
 class SidebarSwitchTests(unittest.TestCase):
-    """Die echte Hauptseite: Umschalten per Mausklick wirkt sofort auf alle sichtbaren Texte."""
+    """The real main page: switching by mouse click takes effect immediately on all visible texts."""
 
     @classmethod
     def setUpClass(cls):
@@ -237,7 +237,7 @@ class SidebarSwitchTests(unittest.TestCase):
         self.assertTrue(self.button("Auto").property("active"))
 
     def visible_texts(self):
-        """Alle sichtbaren Beschriftungen, Hinweise und Untertitel als (Klasse, Eigenschaft, Text)."""
+        """All visible labels, hints and subtitles as (class, property, text)."""
         out = []
         for it in walk(self.win.contentItem()):
             if not it.isVisible():
@@ -271,7 +271,7 @@ class SidebarSwitchTests(unittest.TestCase):
         pump(0.3)
 
     def test_the_check_itself_finds_german_text(self):
-        # Gegenprobe: Auf Deutsch muss derselbe Test deutsche Texte finden, sonst prüft er nichts
+        # Control check: in German the same test must find German texts, otherwise it checks nothing
         self.win.setProperty("page", 3)
         pump(0.5)
         self.assertGreater(len(self.german_leftovers()), 5)

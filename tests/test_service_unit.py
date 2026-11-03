@@ -1,4 +1,4 @@
-"""Schutz gegen versehentliches Aufweichen oder Überhärten von hwpanel.service."""
+"""Protection against accidentally weakening or over-hardening hwpanel.service."""
 
 import re
 import unittest
@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def unit_settings():
-    """Alle aktiven Zeilen 'Schlüssel=Wert' der Unit (Kommentare ignoriert), Schlüssel -> Liste der Werte."""
+    """All active 'key=value' lines of the unit (comments ignored), key -> list of values."""
     out = {}
     for line in (ROOT / "hwpanel.service").read_text(encoding="utf-8").splitlines():
         m = re.match(r"^([A-Za-z]+)=(.*)$", line.strip())
@@ -28,13 +28,13 @@ class TestServiceUnit(unittest.TestCase):
             self.assertEqual(self.u.get(key), [value], key)
 
     def test_description_is_english(self):
-        # erscheint in "systemctl status" für alle Nutzer und lässt sich nicht je Sprache übersetzen
+        # appears in "systemctl status" for all users and cannot be translated per language
         text = " ".join(self.u.get("Description", []))
         self.assertTrue(text)
         self.assertIsNone(re.search(r"[äöüÄÖÜß]", text), text)
 
     def test_sysfs_stays_writable(self):
-        # ProtectKernelTunables (auch mit 'read-only') würde /sys schreibgeschützt mounten
+        # ProtectKernelTunables (even with 'read-only') would mount /sys read-only
         self.assertNotIn("ProtectKernelTunables", self.u)
 
     def test_watchdog_and_fan_fallback(self):

@@ -1,6 +1,6 @@
-"""Misst die Zeichenzeit der GUI (Start, Seitenwechsel, Datenaktualisierung) offscreen.
+"""Measures the drawing time of the GUI (start, page switch, data update) offscreen.
 
-Aufruf: python bench_gui.py   (Software-Rendering; zeigt Verhältnisse, nicht die absolute Zeit auf echter Hardware)
+Usage: python bench_gui.py   (software rendering; shows ratios, not the absolute time on real hardware)
 """
 
 import os
@@ -35,7 +35,7 @@ def pump(seconds):
 
 
 def frame(win):
-    """Verarbeitet Ereignisse und rendert einen Frame; liefert die benötigte Zeit in ms."""
+    """Processes events and renders one frame; returns the time needed in ms."""
     t0 = time.perf_counter()
     QCoreApplication.processEvents()
     win.grabWindow()
@@ -72,7 +72,7 @@ def main():
         print(name, " ".join(f"{p}:{t:.0f}" for p, t in times), "ms")
         print(f"  Median {statistics.median(t for _, t in times):.0f} ms, max {max(t for _, t in times):.0f} ms")
 
-    # eine Sekunde Datenaktualisierung auf Verlauf bzw. Übersicht
+    # one second of data update on the history or the overview
     for p in (1, 0):
         win.setProperty("page", p)
         pump(0.5)
@@ -85,7 +85,7 @@ def main():
             backend._on_history({"samples": [s], "events": []})
             ts.append(frame(win))
         print(f"Datenupdate auf Seite {p}: Median {statistics.median(ts):.0f} ms, max {max(ts):.0f} ms")
-    # Update, während eine andere Seite sichtbar ist (soll fast nichts kosten)
+    # update while another page is visible (should cost almost nothing)
     win.setProperty("page", 2)
     pump(0.5)
     frame(win)

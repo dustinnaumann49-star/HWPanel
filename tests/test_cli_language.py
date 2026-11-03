@@ -1,4 +1,4 @@
-"""Sprachwahl der Kommandozeile: --lang, HWPANEL_LANG und Systemsprache."""
+"""Language choice of the command line: --lang, HWPANEL_LANG and system language."""
 
 import contextlib
 import io
@@ -19,7 +19,7 @@ import hwpaneld  # noqa: E402
 import hwpanelctl  # noqa: E402
 from test_hwpaneld import Base  # noqa: E402
 
-# typisch deutsche Wörter und Umlaute der CLI-Ausgabe: Auf Englisch darf nichts davon erscheinen
+# typically German words and umlauts of the CLI output: none of them may appear in English
 GERMAN = re.compile(r"[äöüÄÖÜß]|\b(Auslastung|Takt|Leistung|Lüfter\w*|Kurve|Grenzen|Punkte|Einstellungen|belegt|Ziel|gesetzt|"
                     r"Modus|eingebaut|schaltbar|Mindestwerte|Sicherung|unbekannt|Messwerte|Fehler|Hinweis|"
                     r"Schutz|Maximaltakt|Profilname|Treiberautomatik|manuell|automatik|Schutzregel|abgelehnt|ja|nein)\b")
@@ -40,7 +40,7 @@ class TestCliLanguage(unittest.TestCase):
         self.tmp.cleanup()
 
     def error_text(self, args, **env):
-        """Text, mit dem 'hwpanelctl status' endet, wenn der Daemon fehlt (Umgebung: nur die übergebenen Variablen)."""
+        """Text with which 'hwpanelctl status' ends when the daemon is missing (environment: only the variables passed)."""
         with mock.patch.dict(os.environ, env, clear=True), \
                 mock.patch.object(sys, "argv", ["hwpanelctl", *args, "status"]):
             with self.assertRaises(SystemExit) as cm:
@@ -89,7 +89,7 @@ class TestCliLanguage(unittest.TestCase):
 
 
 class TestCliOutput(Base):
-    """Ausgabe der CLI gegen einen Daemon auf Fake-Hardware, in beiden Sprachen."""
+    """Output of the CLI against a daemon on fake hardware, in both languages."""
 
     def setUp(self):
         super().setUp()
@@ -120,7 +120,7 @@ class TestCliOutput(Base):
             self.cli(lang, *args)
         return cm.exception.code
 
-    # ---- Ausgabe
+    # ---- Output
 
     def test_english_output_has_no_german_text(self):
         for args in (("status",), ("info",), ("gpu", "--sclk", "2300"), ("cpu", "--turbo", "off"),
@@ -217,13 +217,13 @@ class TestCliOutput(Base):
         self.assertEqual(out.getvalue(), "Note: a note\nError: old plain text\nError: old error\n")
 
     def test_result_prefixes_follow_the_language(self):
-        rc, out = self.cli("en", "gpu", "--sclk", "9999")     # über dem Standard: Daemon lehnt ab
+        rc, out = self.cli("en", "gpu", "--sclk", "9999")     # above the default: daemon rejects
         self.assertEqual(rc, 1)
         self.assertTrue(out.startswith("Error:"), out)
         rc, out = self.cli("de", "gpu", "--sclk", "9999")
         self.assertTrue(out.startswith("Fehler:"), out)
 
-    # ---- Hilfe und Eingabefehler
+    # ---- Help and input errors
 
     def test_help_texts_in_both_languages(self):
         for lang, main_help, gpu_help in (("en", "show measurements", "GPU maximum clock"),

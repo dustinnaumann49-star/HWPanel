@@ -22,7 +22,7 @@ ApplicationWindow {
         }
     }
 
-    // Hintergrund: Schwarz mit rotem Schimmer oben rechts und unten links
+    // Background: black with a red shimmer at the top right and bottom left
     Canvas {
         anchors.fill: parent
         z: -1
@@ -83,7 +83,7 @@ ApplicationWindow {
         target: backend
         function onToast(text, isError) { if (text) toast.show(text, isError) }
     }
-    // Sprachwechsel: alle qsTr()-Texte neu auswerten
+    // Language change: re-evaluate all qsTr() texts
     Connections {
         target: backend.language
         function onLanguageChanged() { backend.language.retranslate(win) }

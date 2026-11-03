@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hwpanelctl: Kommandozeilen-Client für hwpaneld."""
+"""hwpanelctl: command-line client for hwpaneld."""
 
 import argparse
 import json
@@ -15,8 +15,8 @@ tr = i18n.tr
 
 
 def setup_language(argv):
-    """Legt die Sprache fest: --lang, dann HWPANEL_LANG, dann die Systemsprache.
-    Geschieht vor dem Aufbau des Parsers, damit auch die Hilfetexte übersetzt sind."""
+    """Sets the language: --lang, then HWPANEL_LANG, then the system language.
+    Happens before the parser is built, so that the help texts are translated too."""
     pre = argparse.ArgumentParser(add_help=False)
     pre.add_argument("--lang")
     known, _ = pre.parse_known_args(argv)
@@ -60,11 +60,11 @@ def parse_curve(text):
         sys.exit(tr("Give the curve as TEMP:PERCENT,TEMP:PERCENT,..., e.g. 30:40,50:60,80:90"))
 
 
-LABEL_WIDTH = 15   # Breite der Beschriftungsspalte in der Statusausgabe
+LABEL_WIDTH = 15   # width of the label column in the status output
 
 
 def fan_mode_text(code):
-    """Lüfterzustand der Hardware (neutrale Kennung vom Daemon) in der Sprache der Ausgabe."""
+    """Fan state of the hardware (neutral identifier from the daemon) in the language of the output."""
     names = {"manual": tr("manual"), "automatic": tr("automatic"), "off": tr("off")}
     return names.get(code, code) if code else "-"
 

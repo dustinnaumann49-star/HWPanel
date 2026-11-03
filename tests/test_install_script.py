@@ -1,4 +1,4 @@
-"""install.sh: Sprache der Meldungen und Hilfe. Nichts davon braucht root und nichts davon installiert etwas."""
+"""install.sh: language of the messages and help. None of it needs root and none of it installs anything."""
 
 import os
 import re
@@ -12,7 +12,7 @@ GERMAN_LETTERS = re.compile(r"[äöüÄÖÜß]")
 
 
 def run(*args, **env):
-    """install.sh mit genau der übergebenen Umgebung (außer PATH) ausführen."""
+    """Run install.sh with exactly the passed environment (except PATH)."""
     full_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), **env}
     return subprocess.run(["bash", str(SCRIPT), *args], env=full_env, capture_output=True, text=True,
                           timeout=30, cwd="/")
@@ -40,8 +40,8 @@ class TestHelp(unittest.TestCase):
     def test_priority_like_the_python_side(self):
         self.assertIn("Aufruf:", run("--help", LANGUAGE="de:en", LANG="en_US.UTF-8").stdout)
         self.assertIn("Usage:", run("--help", LANGUAGE="en:de", LANG="de_DE.UTF-8").stdout)
-        self.assertIn("Aufruf:", run("--help", LANGUAGE="fr:de", LANG="fr_FR.UTF-8").stdout)    # fr gibt es nicht, de schon
-        self.assertIn("Usage:", run("--help", LC_ALL="en_US.UTF-8", LANG="de_DE.UTF-8").stdout)  # LC_ALL gewinnt
+        self.assertIn("Aufruf:", run("--help", LANGUAGE="fr:de", LANG="fr_FR.UTF-8").stdout)    # fr does not exist, de does
+        self.assertIn("Usage:", run("--help", LC_ALL="en_US.UTF-8", LANG="de_DE.UTF-8").stdout)  # LC_ALL wins
 
     def test_hwpanel_lang_beats_system_language(self):
         self.assertIn("Usage:", run("--help", HWPANEL_LANG="en", LANG="de_DE.UTF-8").stdout)
@@ -55,7 +55,7 @@ class TestHelp(unittest.TestCase):
 
 @unittest.skipIf(os.geteuid() == 0, "als root würde das Skript wirklich installieren")
 class TestRootCheck(unittest.TestCase):
-    """Ohne root bricht das Skript sofort ab und ändert nichts."""
+    """Without root the script aborts immediately and changes nothing."""
 
     def test_message_follows_language(self):
         for args in ((), ("--uninstall",), ("--disable-lact",)):

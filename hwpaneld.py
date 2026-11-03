@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""hwpaneld: Root-Daemon zum Überwachen und Begrenzen von GPU- und CPU-Takt.
+"""hwpaneld: root daemon for monitoring and limiting GPU and CPU clocks.
 
-Kein Übertakten: Obergrenzen sind die Treiber-Standardwerte, die beim ersten
-Start ermittelt und in defaults.json gespeichert werden. Schreibzugriffe sind
-auf eine feste Whitelist von sysfs-Pfaden beschränkt.
+No overclocking: the upper limits are the driver defaults, which are determined on the
+first start and stored in defaults.json. Write access is restricted to a fixed
+whitelist of sysfs paths.
 """
 
 import argparse
@@ -33,15 +33,15 @@ GPU_KEYS = ("sclk_max", "mclk_max", "power_cap_w")
 CPU_KEYS = ("max_mhz", "turbo", "epp", "governor")
 BUILTIN = "Standard"
 
-# Lüfter: Sensorwahl, Grenzen der Kurve und Regelparameter
+# Fan: sensor choice, limits of the curve and control parameters
 FAN_SENSORS = {"edge": "temp1_input", "junction": "temp2_input", "mem": "temp3_input"}
-FAN_POINTS = (2, 10)           # erlaubte Anzahl Kurvenpunkte
-FAN_TEMP_RANGE = (0, 110)      # erlaubte Temperaturen der Stützpunkte (°C)
-FAN_RULES = [[60, 30], [80, 50]]   # Mindestdrehzahl: bei >= Temperatur mindestens Prozent
-FAN_SAFETY_JUNCTION = 100      # ab dieser Junction-Temperatur immer 100 %
-FAN_SAFETY_RELEASE = 5         # Rückkehr zur Kurve erst nach so viel Abkühlung (°C)
-FAN_SPINDOWN_S = 5.0           # Absenken erst nach so vielen Sekunden niedrigerem Zielwert
-FAN_THRESHOLD = 2              # Änderungen unter so vielen Prozentpunkten werden nicht geschrieben
+FAN_POINTS = (2, 10)           # allowed number of curve points
+FAN_TEMP_RANGE = (0, 110)      # allowed temperatures of the curve points (°C)
+FAN_RULES = [[60, 30], [80, 50]]   # minimum speed: at >= temperature, at least this percent
+FAN_SAFETY_JUNCTION = 100      # from this junction temperature on, always 100 %
+FAN_SAFETY_RELEASE = 5         # return to the curve only after cooling down by this much (°C)
+FAN_SPINDOWN_S = 5.0           # lowering only after the lower target value has held for this many seconds
+FAN_THRESHOLD = 2              # changes below this many percentage points are not written
 FAN_INTERVAL_S = 0.5
 FAN_EXAMPLE = [[30, 40], [40, 50], [50, 60], [60, 70], [70, 80], [80, 90]]
 
@@ -61,10 +61,10 @@ ALLOWED_WRITE = [re.compile(p, re.ASCII) for p in (
 
 
 def write_allowed(path):
-    """Nur genau diese sysfs-Pfade dürfen beschrieben werden.
+    """Only exactly these sysfs paths may be written.
 
-    fullmatch statt '^...$': '$' passt auch vor einem angehängten Zeilenumbruch.
-    re.ASCII: '\\d' soll nur 0-9 sein, keine Ziffern anderer Schriften."""
+    fullmatch instead of '^...$': '$' also matches before an appended newline.
+    re.ASCII: '\\d' should only be 0-9, not digits of other scripts."""
     return any(r.fullmatch(path) for r in ALLOWED_WRITE)
 
 
@@ -88,7 +88,7 @@ def _rnd(v, nd=1):
 
 
 def sd_notify(msg):
-    """Meldet dem systemd-Watchdog Lebenszeichen (ohne NOTIFY_SOCKET ohne Wirkung)."""
+    """Reports a sign of life to the systemd watchdog (no effect without NOTIFY_SOCKET)."""
     addr = os.environ.get("NOTIFY_SOCKET")
     if not addr:
         return
@@ -107,7 +107,7 @@ def sd_notify(msg):
 
 
 def fan_curve_value(curve, t):
-    """Lineare Interpolation der Kurve [[°C, %], ...]; außerhalb der Punkte konstant."""
+    """Linear interpolation of the curve [[°C, %], ...]; constant outside the points."""
     if t <= curve[0][0]:
         return float(curve[0][1])
     for (t0, p0), (t1, p1) in zip(curve, curve[1:]):
@@ -117,7 +117,7 @@ def fan_curve_value(curve, t):
 
 
 def describe_fan(cfg):
-    """Beschreibung der Lüfterkonfiguration als Meldung (für Ereignisse)."""
+    """Description of the fan configuration as a message (for events)."""
     if not cfg:
         return Msg("Fan automatic")
     c = cfg["curve"]
@@ -128,10 +128,10 @@ def describe_fan(cfg):
 # ---------------------------------------------------------------- Parser
 
 def parse_od(text):
-    """Parst pp_od_clk_voltage (OD_SCLK, OD_MCLK, OD_VDDGFX_OFFSET, OD_RANGE).
+    """Parses pp_od_clk_voltage (OD_SCLK, OD_MCLK, OD_VDDGFX_OFFSET, OD_RANGE).
 
-    Der Treiber füllt die Datei zwischen den Abschnitten mit NUL-Bytes auf,
-    daher werden diese vor dem Parsen entfernt."""
+    The driver pads the file with NUL bytes between the sections,
+    so these are removed before parsing."""
     text = text.replace("\x00", "")
     res = {"sclk": {}, "mclk": {}, "range": {}, "vo": None}
     section = None
@@ -166,7 +166,7 @@ def parse_od(text):
 
 
 def parse_dmidecode(text):
-    """Liest belegte RAM-Slots aus 'dmidecode -t memory'."""
+    """Reads the populated RAM slots from 'dmidecode -t memory'."""
     wanted = ("Size", "Type", "Speed", "Configured Memory Speed",
               "Configured Clock Speed", "Locator")
     mods, cur = [], None
@@ -279,7 +279,7 @@ class HW:
         self.defaults = self._load_defaults()
         self.profiles = self._load_profiles()
 
-    # ---- Dateien / sysfs
+    # ---- Files / sysfs
 
     @staticmethod
     def _susp_offset():
@@ -328,7 +328,7 @@ class HW:
             raise PermissionError(f"write access not allowed: {path!r}")
         self.io.write(path, value)
 
-    # ---- Erkennung
+    # ---- Detection
 
     def _find_gpu(self, forced):
         if forced:
@@ -376,7 +376,7 @@ class HW:
                 return p, inverted
         return None
 
-    # ---- Standardwerte / Profile
+    # ---- Defaults / profiles
 
     def _load_defaults(self):
         d = self._load_json("defaults.json", None)
@@ -437,7 +437,7 @@ class HW:
                 log(f"Profile '{name}' invalid, ignored")
         return clean
 
-    # ---- Grenzen / Validierung
+    # ---- Limits / validation
 
     def limits(self):
         L = {"gpu": {}, "cpu": {}}
@@ -536,7 +536,7 @@ class HW:
         return bool(g and self.io.exists(g.hw("pwm1")) and self.io.exists(g.hw("pwm1_enable")))
 
     def _validate_fan(self, v, check_hw=True):
-        """Normalisiert die Lüfterkonfiguration: None (Automatik) oder {'sensor', 'curve'}."""
+        """Normalizes the fan configuration: None (automatic) or {'sensor', 'curve'}."""
         if v is None or v == {}:
             return None
         if not isinstance(v, dict):
@@ -592,7 +592,7 @@ class HW:
             out["fan"] = fan
         return out
 
-    # ---- Anwenden
+    # ---- Applying
 
     def _apply_gpu(self, v, reset):
         errs = []
@@ -621,14 +621,14 @@ class HW:
                     got = od[tbl].get(1)
                     if not want or got == want:
                         continue
-                    # Der Treiber rundet Takte (z. B. 2679 -> 2674). Das ist kein Fehler.
+                    # The driver rounds clocks (e.g. 2679 -> 2674). That is not an error.
                     if got is not None and abs(got - want) <= max(10, want * 0.01):
                         continue
                     if asked or got is None:
                         errs.append(Msg("{key}: expected {expected}, driver reports {actual}", key=key, expected=want, actual=got))
                     else:
-                        # nur zurückgesetzt, nichts verlangt: der Treiberstandard gilt, auch wenn er vom
-                        # gespeicherten Wert abweicht (z. B. nach Treiber-/Kernel-Update)
+                        # only reset, nothing requested: the driver default applies, even if it differs from the
+                        # stored value (e.g. after a driver/kernel update)
                         log(f"Note: {key} after reset is {got}, stored default is {want}")
         if "power_cap_w" in v:
             want = v["power_cap_w"] * 1_000_000
@@ -639,7 +639,7 @@ class HW:
             try:
                 self._write(p, f"{int(want)}\n")
                 got = self._num(p)
-                if got is not None and abs(int(got) - int(want)) > 1_000_000:   # 1 W Toleranz
+                if got is not None and abs(int(got) - int(want)) > 1_000_000:   # 1 W tolerance
                     errs.append(Msg("{key}: expected {expected}, driver reports {actual}", key="power_cap_w",
                                     expected=int(want) // 1_000_000, actual=int(got) // 1_000_000))
             except OSError as e:
@@ -714,14 +714,14 @@ class HW:
         e2, notes = self._apply_cpu(settings["cpu"], reset)
         return errs + e2, notes
 
-    # ---- Lüfterregelung
+    # ---- Fan control
 
     def _fan_event(self, msg):
         self._event(msg)
         log(str(msg))
 
     def _fan_release(self, why=None):
-        """Gibt den Lüfter an die Treiber-Automatik zurück (pwm1_enable = 2)."""
+        """Returns the fan to the driver's automatic mode (pwm1_enable = 2)."""
         st, g = self._fan, self.gpu
         if g and st["manual"]:
             try:
@@ -745,8 +745,8 @@ class HW:
                 raise OSError(errno.EIO, "pwm1_enable cannot be set to manual")
             st["manual"] = True
         self._write(g.hw("pwm1"), f"{value}\n")
-        # amdgpu rechnet intern über ganze Prozent und liest teils den aktuellen Wert statt des
-        # gesetzten (Rundung, Anlauframpe). Eine Abweichung ist daher kein Fehler, nur ein Log-Hinweis.
+        # amdgpu computes in whole percent internally and sometimes reads back the current value instead of the
+        # one that was set (rounding, start-up ramp). A deviation is therefore not an error, only a log note.
         got = self._num(g.hw("pwm1"))
         if got is not None and abs(got - value) > mx * 0.12 and not st.get("diff_logged"):
             st["diff_logged"] = True
@@ -754,7 +754,7 @@ class HW:
         st["pct"] = pct
 
     def fan_step(self, now=None):
-        """Ein Regelschritt: Kurve auswerten und PWM schreiben (oder Automatik herstellen)."""
+        """One control step: evaluate the curve and write PWM (or restore automatic mode)."""
         now = time.monotonic() if now is None else now
         g = self.gpu
         with self._fan_lock:
@@ -780,7 +780,7 @@ class HW:
                 else:
                     self._fan_release()
                 return
-            # Sicherung: bei kritischer Junction-Temperatur immer volle Drehzahl
+            # Safety: at a critical junction temperature always full speed
             if junc is not None:
                 if junc >= self.fan_safety_c and not st["override"]:
                     st["override"] = True
@@ -792,7 +792,7 @@ class HW:
             st["target"] = target
             cur = st["pct"]
             if st["manual"] and self._read(g.hw("pwm1_enable")) != "1":
-                cur = None   # z. B. nach Standby oder durch ein anderes Programm zurückgesetzt
+                cur = None   # e.g. after standby or reset by another program
                 st["manual"] = False
             write = False
             if cur is None:
@@ -824,7 +824,7 @@ class HW:
                         self._fan_release()
 
     def _fan_apply(self, cfg):
-        """Setzt die Lüfterkonfiguration und führt sofort einen Regelschritt aus."""
+        """Sets the fan configuration and immediately runs one control step."""
         with self._fan_lock:
             st = self._fan
             st["cfg"] = cfg
@@ -842,7 +842,7 @@ class HW:
             return [Msg("Fan: {error}", error=st["error"])] if st["error"] else []
 
     def fan_shutdown(self):
-        """Beim Beenden des Daemons: Lüfter zurück auf Automatik."""
+        """When the daemon exits: fan back to automatic."""
         with self._fan_lock:
             self._fan["cfg"] = None
             if self._fan["manual"]:
@@ -854,7 +854,7 @@ class HW:
         hw_mode = None
         if g:
             en = self._read(g.hw("pwm1_enable"))
-            hw_mode = {"1": "manual", "2": "automatic", "0": "off"}.get(en)   # neutrale Kennungen, die Clients übersetzen
+            hw_mode = {"1": "manual", "2": "automatic", "0": "off"}.get(en)   # neutral identifiers that the clients translate
         err = st["error"]
         return {"supported": self.fan_supported(),
                 "mode": "curve" if cfg else "auto",
@@ -881,7 +881,7 @@ class HW:
             self._fan_wake.clear()
 
     def _expected(self, s):
-        """Vollständiger Sollzustand eines Profils (nicht genannte Werte = Standard)."""
+        """Complete target state of a profile (values not given = default)."""
         dg, dc = self.defaults.get("gpu", {}), self.defaults.get("cpu", {})
         g, c = s.get("gpu") or {}, s.get("cpu") or {}
         gpu = {"sclk_max": g.get("sclk_max", dg.get("sclk_max")),
@@ -894,14 +894,14 @@ class HW:
 
     @staticmethod
     def _gpu_close(key, have, want):
-        """Vergleich mit Rundungstoleranz des Treibers (Takt 1 %, mindestens 10 MHz; Power-Limit 1 W)."""
+        """Comparison with the driver's rounding tolerance (clock 1 %, at least 10 MHz; power limit 1 W)."""
         if have is None:
             return False
         tol = 1 if key == "power_cap_w" else max(10, want * 0.01)
         return abs(have - want) <= tol
 
     def _detect_profile(self):
-        """Erkennt das aktive Profil am tatsächlichen Hardwarezustand (auch nach Daemon-Neustart)."""
+        """Detects the active profile from the actual hardware state (also after a daemon restart)."""
         snap = self.settings_snapshot()
         candidates = [(BUILTIN, {})] + list(self.profiles.items())
         for name, s in candidates:
@@ -930,7 +930,7 @@ class HW:
 
     @staticmethod
     def _setting_msg(key, value):
-        """Eine Einstellung als Meldung für Ereignisse (jede Vorlage ist ein eigener Katalogeintrag)."""
+        """One setting as a message for events (each template is its own catalog entry)."""
         return {"sclk_max": lambda: Msg("GPU clock {value}", value=value),
                 "mclk_max": lambda: Msg("VRAM clock {value}", value=value),
                 "power_cap_w": lambda: Msg("Power limit {value}", value=value),
@@ -942,17 +942,17 @@ class HW:
 
     @staticmethod
     def _with_failure(msg, errs):
-        """Ereignis mit dem Anhang der ersten Fehlermeldung."""
+        """Event with the first error message appended."""
         return Msg("{event} (error: {error})", event=msg, error=errs[0]) if errs else msg
 
     def _event(self, msg):
-        """Ereignis für den Verlauf: einfacher englischer Text und die Meldung für übersetzende Clients."""
+        """Event for the history: plain English text and the message for translating clients."""
         with self._hist_lock:
             self._events.append({"t": round(time.time(), 1), "text": str(msg), "msg": msg.to_json()})
 
     @staticmethod
     def _profile_msg(name):
-        """Das eingebaute Profil heißt für Menschen "Default"/"Standard", intern aber BUILTIN."""
+        """For humans the built-in profile is called "Default"/"Standard", but internally it is BUILTIN."""
         return Msg("Profile {name}", name=Msg("Default") if name == BUILTIN else name)
 
     def _describe(self, v):
@@ -982,7 +982,7 @@ class HW:
         with self.lock:
             v = self._validate_fan(values)
             errs = self._fan_apply(v)
-            self.desired["fan"] = v   # bei Fehler bleibt der Lüfter auf Automatik und der Daemon versucht es erneut
+            self.desired["fan"] = v   # on error the fan stays on automatic and the daemon tries again
             self._event(self._with_failure(Msg("Manual: {what}", what=describe_fan(v)), errs))
             return self._result(errs, [])
 
@@ -1029,7 +1029,7 @@ class HW:
                 log(f"Reapply: {e}")
             return errs
 
-    # ---- Profile verwalten
+    # ---- Managing profiles
 
     @staticmethod
     def _check_name(name):
@@ -1064,7 +1064,7 @@ class HW:
             self._save_json("config.json", self.cfg)
         return {"ok": True, "autostart_profile": self.cfg["autostart_profile"]}
 
-    # ---- Lesen
+    # ---- Reading
 
     def cpu_settings(self):
         if not self.cpu_dirs:
@@ -1206,7 +1206,7 @@ class HW:
             "active_profile": self._detect_profile(),
         }
 
-    # ---- Hintergrund-Abtastung
+    # ---- Background sampling
 
     def _read_stat(self):
         out = {}
@@ -1276,9 +1276,9 @@ class HW:
             samples, events = list(self._hist), list(self._events)
         if since is not None:
             samples = [s for s in samples if s["t"] > since]
-            # Ereignisse inklusive: Der Client fragt mit dem Zeitstempel der letzten Probe, Zeitstempel sind auf 0,1 s
-            # gerundet. Ein Ereignis nach dieser Probe kann denselben Wert haben und ginge mit ">" verloren.
-            # Doppelte erkennt der Client am Paar (Zeit, Text).
+            # Events inclusive: the client asks with the timestamp of the last sample, and timestamps are rounded to 0.1 s.
+            # An event after that sample can have the same value and would be lost with ">".
+            # The client recognizes duplicates by the (time, text) pair.
             events = [e for e in events if e["t"] >= since]
         return {"ok": True, "now": round(time.time(), 1), "interval_s": 1,
                 "retention_s": self.history_seconds, "samples": samples, "events": events}
@@ -1290,7 +1290,7 @@ class HW:
             except Exception:
                 log(traceback.format_exc())
 
-    # ---- Kommandos
+    # ---- Commands
 
     def handle(self, req):
         cmd = req.get("cmd")
@@ -1324,7 +1324,7 @@ class HW:
 # --------------------------------------------------------------- Server
 
 def error_response(e):
-    """Antwort auf einen fehlgeschlagenen Befehl: einfacher englischer Text; wo es eine Meldung gibt, auch deren Vorlage."""
+    """Response to a failed command: plain English text; where there is a message, also its template."""
     msg = e.msg if isinstance(e, MsgError) else None if isinstance(e, ValueError) else Msg("Internal error: {error}", error=str(e))
     resp = {"ok": False, "error": str(msg) if msg else str(e)}
     if msg:
@@ -1349,7 +1349,7 @@ class Handler(socketserver.StreamRequestHandler):
                 if not isinstance(req, dict):
                     raise MsgError("JSON object expected")
                 resp = hw.handle(req)
-            except ValueError as e:   # auch MsgError und ein ungültiges JSON
+            except ValueError as e:   # also MsgError and invalid JSON
                 resp = error_response(e)
             except Exception as e:
                 log(traceback.format_exc())

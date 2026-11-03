@@ -3,8 +3,8 @@ import QtQuick.Layouts
 import "."
 import "Fmt.js" as Fmt
 
-// Gemeinsames Formular für „Manuell“ und den Profil-Editor.
-// Obergrenzen sind die Treiber-Standardwerte (kein Übertakten).
+// Shared form for "Manual" and the profile editor.
+// Upper limits are the driver defaults (no overclocking).
 Item {
     id: f
     property real sclk: 0
@@ -56,7 +56,7 @@ Item {
         if (c.epp) epp = c.epp
         if (c.governor) gov = c.governor
     }
-    // all = true: alle Werte; sonst nur Abweichungen vom Standard (für Profile)
+    // all = true: all values; otherwise only deviations from the default (for profiles)
     function gpuValues(all) {
         var d = {}
         if (limit("gpu", "sclk_max") && (all || sclk < hi("gpu", "sclk_max"))) d.sclk_max = Math.round(sclk)

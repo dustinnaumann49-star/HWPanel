@@ -1,10 +1,12 @@
-"""Tests für hwpanel_i18n: Sprachwahl, Kataloge, Übersetzen und die echten Kataloge in locales/."""
+"""Tests for hwpanel_i18n: language choice, catalogs, translating and the real catalogs in locales/."""
 
 import ast
+import io
 import json
 import re
 import sys
 import tempfile
+import tokenize
 import unittest
 from pathlib import Path
 
@@ -23,9 +25,9 @@ class Fixture(unittest.TestCase):
             "_name": "Deutsch", "Overview": "Übersicht",
             "Profile {name} applied": "Profil {name} angewendet",
             "Broken {x}": "Kaputt {y}", "Empty": "", "Number": 5}), encoding="utf-8")
-        (d / "fr.json").write_text(dump({"Overview": "Aperçu"}), encoding="utf-8")   # ohne _name
+        (d / "fr.json").write_text(dump({"Overview": "Aperçu"}), encoding="utf-8")   # without _name
         (d / "en.json").write_text(dump({"_name": "English"}), encoding="utf-8")
-        (d / "xx.json").write_text("{kaputt", encoding="utf-8")                      # defekt
+        (d / "xx.json").write_text("{kaputt", encoding="utf-8")                      # broken
         self.dir = d
 
     def tearDown(self):
@@ -71,7 +73,7 @@ class TestResolve(Fixture):
         self.assertEqual(self.resolve("", LANG="de_AT.UTF-8"), "de")
 
     def test_auto_falls_back_to_english(self):
-        self.assertEqual(self.resolve(LANG="ja_JP.UTF-8"), "en")   # Sprache ohne Katalog
+        self.assertEqual(self.resolve(LANG="ja_JP.UTF-8"), "en")   # language without a catalog
         self.assertEqual(self.resolve(LANG="C"), "en")
         self.assertEqual(self.resolve(), "en")
 
@@ -131,7 +133,7 @@ class TestLoadAndTranslate(Fixture):
 
 
 class TestMessages(Fixture):
-    """Meldungen des Daemons: englische Vorlage plus Argumente; der Client stellt sie in seiner Sprache dar."""
+    """Messages of the daemon: English template plus arguments; the client renders them in its language."""
 
     def setUp(self):
         super().setUp()
@@ -152,7 +154,7 @@ class TestMessages(Fixture):
     def test_to_json_has_template_and_arguments(self):
         m = i18n.Msg("Value {key} is too high", key="sclk")
         self.assertEqual(m.to_json(), {"tpl": "Value {key} is too high", "args": {"key": "sclk"}})
-        json.dumps(m.to_json())   # muss sich übertragen lassen
+        json.dumps(m.to_json())   # must be JSON-serializable
 
     def test_client_renders_in_its_language_and_falls_back_to_english(self):
         data = i18n.Msg("Value {key} is too high", key="sclk").to_json()
@@ -188,7 +190,7 @@ class TestMessages(Fixture):
         self.assertEqual(i18n.message("just text"), "just text")
         self.assertEqual(i18n.message(None), "")
         self.assertEqual(i18n.message({"no": "template"}), "{'no': 'template'}")
-        self.assertEqual(i18n.message({"tpl": "Hello {x}"}), "Hello {x}")   # ohne Argumente bleibt es stehen
+        self.assertEqual(i18n.message({"tpl": "Hello {x}"}), "Hello {x}")   # without arguments it stays as it is
 
     def test_user_text_is_never_used_as_format_string(self):
         evil = "{0.__class__}{key}"
@@ -210,22 +212,22 @@ class TestMessages(Fixture):
         i18n.set_language("de", self.dir)
         self.assertEqual(i18n.message_field(resp, "error"), "Wert sclk ist zu hoch")
         self.assertEqual(i18n.message_list(resp, "errors"), ["GPU-Takt 1", "GPU-Takt 2"])
-        # alter Daemon ohne *_msg: der einfache Text
+        # old daemon without *_msg: the plain text
         self.assertEqual(i18n.message_field({"error": "old text"}, "error"), "old text")
         self.assertEqual(i18n.message_list({"errors": ["x", "y"]}, "errors"), ["x", "y"])
         self.assertEqual(i18n.message_field({}, "error"), "")
         self.assertEqual(i18n.message_list({}, "errors"), [])
-        # Längen passen nicht zusammen: lieber die einfachen Texte als eine falsche Zuordnung
+        # lengths do not match: better the plain texts than a wrong assignment
         self.assertEqual(i18n.message_list({"errors": ["x", "y"], "errors_msg": [resp["errors_msg"][0]]}, "errors"), ["x", "y"])
 
 
 def _tokens(text):
-    """Platzhalter ({name}, %1) und HTML-Marken einer Meldung, sortiert."""
+    """Placeholders ({name}, %1) and HTML tags of a message, sorted."""
     return sorted(re.findall(r"\{[A-Za-z_0-9]*\}|%\d|</?[a-z]+>", text))
 
 
 class TestRealCatalogs(unittest.TestCase):
-    """Die mitgelieferten Dateien in locales/ müssen für alle Sprachen dieselben Regeln einhalten."""
+    """The bundled files in locales/ must follow the same rules for all languages."""
 
     @classmethod
     def setUpClass(cls):
@@ -261,7 +263,7 @@ class TestRealCatalogs(unittest.TestCase):
                 self.assertEqual(_tokens(k), _tokens(v), f"{f.name}: {k!r} -> {v!r}")
 
     def test_no_translation_equals_its_key(self):
-        # Ein Eintrag, der dem Quelltext gleicht, ist überflüssig: Fehlt er, erscheint derselbe Text.
+        # An entry equal to the source text is superfluous: if it is missing, the same text appears.
         for f in self.files:
             if f.stem == "en":
                 continue
@@ -271,13 +273,13 @@ class TestRealCatalogs(unittest.TestCase):
 
 
 GERMAN_LETTERS = re.compile(r"[äöüÄÖÜß]")
-# Quelltexte, die auf Deutsch genauso lauten: Sie brauchen keinen Eintrag in de.json.
+# Source texts that read the same in German: they need no entry in de.json.
 SAME_IN_GERMAN = {
     "Auto", "Sensor", "Governor", "Turbo Boost", "Energy Performance Preference",
     "GPU max %1 MHz", "VRAM max %1 MHz", "CPU max %1 MHz", "Power %1 W", "EPP %1", "Governor %1",
     "Max %1 MHz · ", "max %1 MHz", "max %1", "Limit %1 W", "VRAM %1 MHz", "Junction %1 · Mem %2", "LACT: %1",
     "CPU   {model}",
-    # Meldungen des Daemons, die auf Deutsch gleich lauten
+    # Messages of the daemon that read the same in German
     "Turbo {value}", "EPP {value}", "Governor {value}", "Governor: {reason}", "EPP: {reason}", "Turbo: {reason}",
     "{reason}", "{key} {value}",
 }
@@ -287,7 +289,7 @@ QSTR = re.compile(r'\bqsTr\(\s*"((?:[^"\\]|\\.)*)"')
 
 
 def qml_texts():
-    """Alle Quelltexte von qsTr() in QML und JS: Text -> Dateien."""
+    """All source texts of qsTr() in QML and JS: text -> files."""
     out = {}
     for f in QML_FILES:
         for m in QSTR.finditer(f.read_text(encoding="utf-8")):
@@ -301,12 +303,12 @@ def _tr_calls(tree):
                 and isinstance(node.args[0].value, str):
             fn = node.func
             name = fn.id if isinstance(fn, ast.Name) else fn.attr if isinstance(fn, ast.Attribute) else None
-            if name in ("tr", "Msg", "MsgError"):   # Msg/MsgError: Meldungen des Daemons
+            if name in ("tr", "Msg", "MsgError"):   # Msg/MsgError: messages of the daemon
                 yield node.args[0]
 
 
 def python_texts(files=None):
-    """Alle Quelltexte von tr(...) in Python-Dateien: Text -> Dateien."""
+    """All source texts of tr(...) in Python files: text -> files."""
     out = {}
     for f in files or PY_FILES:
         for arg in _tr_calls(ast.parse(f.read_text(encoding="utf-8"))):
@@ -315,7 +317,7 @@ def python_texts(files=None):
 
 
 class TestCatalogCoverage(unittest.TestCase):
-    """Die deutschen Texte dürfen nicht im Quelltext stehen, und der Katalog muss genau die benutzten Texte enthalten."""
+    """The German texts must not be in the source code, and the catalog must contain exactly the texts that are used."""
 
     @classmethod
     def setUpClass(cls):
@@ -345,7 +347,7 @@ class TestCatalogCoverage(unittest.TestCase):
                 self.assertIsNone(GERMAN_LETTERS.search(lit), f"{f.name}: {lit!r} gehört in qsTr()")
 
     def test_no_german_text_left_in_gui_python_outside_tr(self):
-        allowed_prefix = "[Desktop Entry]"   # Vorlage der Autostart-Datei enthält absichtlich Comment[de]
+        allowed_prefix = "[Desktop Entry]"   # template of the autostart file deliberately contains Comment[de]
         for f in PY_FILES:
             tree = ast.parse(f.read_text(encoding="utf-8"))
             in_tr = {id(a) for a in _tr_calls(tree)}
@@ -357,6 +359,84 @@ class TestCatalogCoverage(unittest.TestCase):
                         and not node.value.startswith(allowed_prefix):
                     self.assertIsNone(GERMAN_LETTERS.search(node.value),
                                       f"{f.name}:{node.lineno}: {node.value!r} gehört in tr()")
+
+
+# Words that exist only in German (case-sensitive on purpose: "MIT license" or "DES" must not match).
+_GERMAN_WORDS = ("der das dem ein eine einen einem einer eines und oder nicht ist sind wird werden für mit zum zur bei beim "
+                 "nach über auch nur noch kein keine wenn dann weil damit sonst aber jede jeder jedes dass ohne gibt gilt "
+                 "muss darf kann soll steht gehört sich dieser diese dieses wieder immer").split()
+GERMAN_WORDS = re.compile(r"\b(?:%s)\b" % "|".join(f"{w}|{w.capitalize()}" for w in _GERMAN_WORDS))
+SOURCE_GLOBS = ("*.py", "gui/*.py", "tests/*.py", "gui/qml/*.qml", "gui/qml/*.js", "install.sh", "hwpanel.service")
+
+
+def source_files():
+    return [f for pattern in SOURCE_GLOBS for f in sorted(ROOT.glob(pattern))]
+
+
+def comments(path):
+    """(line, text) of every comment and docstring in a source file."""
+    src = path.read_text(encoding="utf-8")
+    if path.suffix == ".py":
+        for tok in tokenize.generate_tokens(io.StringIO(src).readline):
+            if tok.type == tokenize.COMMENT:
+                yield tok.start[0], tok.string
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) \
+                    and ast.get_docstring(node, clean=False):
+                yield node.body[0].lineno, ast.get_docstring(node, clean=False)
+        return
+    if path.suffix in (".qml", ".js"):   # strings are matched first, so a "//" inside one is not taken for a comment
+        pattern = r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'|(//[^\n]*|(?s:/\*.*?\*/))'
+    else:   # shell and systemd unit: "#" starting a word, but not the "#!" of a shebang
+        pattern = r"(?<!\S)(#(?!!)[^\n]*)"
+    for m in re.finditer(pattern, src):
+        if m.group(1):
+            yield src.count("\n", 0, m.start(1)) + 1, m.group(1)
+
+
+def looks_german(text):
+    return bool(GERMAN_LETTERS.search(text) or GERMAN_WORDS.search(text))
+
+
+class TestSourceLanguage(unittest.TestCase):
+    """Comments and docstrings are English, so that contributors from anywhere can read the code.
+    German belongs in locales/de.json and in what the tests expect, not in comments.
+
+    The detector finds umlauts and common German function words, so full sentences are caught;
+    a lone German noun in a very short comment can slip through."""
+
+    def test_comments_and_docstrings_are_english(self):
+        found = [f"{f.relative_to(ROOT)}:{line}: {text.strip()[:70]!r}"
+                 for f in source_files() for line, text in comments(f) if looks_german(text)]
+        self.assertEqual(found, [], "German comments or docstrings (translate them to English)")
+
+    def test_the_check_sees_every_kind_of_source_file(self):
+        # a typo in a glob or a broken extractor must not turn the check above into a silent pass
+        seen = {f.suffix: 0 for f in source_files()}
+        for f in source_files():
+            seen[f.suffix] += sum(1 for _ in comments(f))
+        self.assertEqual(sorted(seen), [".js", ".py", ".qml", ".service", ".sh"])
+        self.assertEqual([s for s, n in seen.items() if n == 0], [])
+        names = {str(f.relative_to(ROOT)) for f in source_files()}
+        self.assertLessEqual({"hwpaneld.py", "hwpanelctl.py", "hwpanel_i18n.py", "gui/backend.py", "gui/qml/Theme.qml",
+                              "gui/qml/Fmt.js", "tests/test_i18n.py"}, names)
+
+    def test_the_detector_recognizes_german(self):
+        for text in ("# Lüfter zurück auf Automatik", "# wird nicht geschrieben", "// Der Rand", "# bei Fehler: sonst nichts",
+                     '"""Fehlt ein Eintrag, erscheint der englische Text."""'):
+            self.assertTrue(looks_german(text), text)
+        for text in ("# fan back to automatic", "# MIT license, DES cipher", "// the border", "# Hardening: only options from systemd 245"):
+            self.assertFalse(looks_german(text), text)
+
+    def test_the_extractors_find_comments_in_every_syntax(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "a.py").write_text('"""doc"""\nx = "# not a comment"  # real\n', encoding="utf-8")
+            (d / "a.qml").write_text('Item { text: "// not a comment"  // real\n    /* block\n comment */ }\n', encoding="utf-8")
+            (d / "a.sh").write_text("#!/bin/sh\nprintf '#!/bin/sh'  # real\n# whole line\n", encoding="utf-8")
+            self.assertEqual(list(comments(d / "a.py")), [(2, "# real"), (1, "doc")])
+            self.assertEqual(list(comments(d / "a.qml")), [(1, "// real"), (2, "/* block\n comment */")])
+            self.assertEqual(list(comments(d / "a.sh")), [(2, "# real"), (3, "# whole line")])
 
 
 if __name__ == "__main__":

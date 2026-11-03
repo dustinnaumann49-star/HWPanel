@@ -54,7 +54,7 @@ Item {
         }
 
         RowLayout {
-            // Höhe folgt dem höchsten Karteninhalt, damit nichts über den Rand ragt (Schriftmaße sind je System verschieden)
+            // Height follows the tallest card content so that nothing sticks out over the edge (font metrics differ per system)
             readonly property real fit: Math.max(292, 2 * Theme.pad + Math.max(gpuCol.implicitHeight, cpuCol.implicitHeight, ramCol.implicitHeight))
             Layout.fillWidth: true
             Layout.minimumHeight: fit

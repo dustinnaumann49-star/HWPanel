@@ -14,7 +14,7 @@ Item {
             GradientStop { position: 1; color: Theme.sideBottom }
         }
     }
-    // leuchtende Trennlinie
+    // glowing divider line
     Rectangle { anchors.right: parent.right; width: 6; height: parent.height; opacity: 0.10
         gradient: Gradient { orientation: Gradient.Horizontal
             GradientStop { position: 0; color: "transparent" } GradientStop { position: 1; color: Theme.red } } }

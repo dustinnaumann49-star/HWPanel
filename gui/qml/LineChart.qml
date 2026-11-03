@@ -3,8 +3,8 @@ import QtQuick.Layouts
 import "."
 import "Fmt.js" as Fmt
 
-// Verlaufsdiagramm: leuchtende Linien, Fläche mit Spiegelung unter der Achse,
-// Marker für Profilwechsel, Maximalwerte in der Legende und Hover-Anzeige.
+// History chart: glowing lines, area with reflection below the axis,
+// markers for profile changes, maximum values in the legend and hover display.
 Item {
     id: root
     property string title: ""
@@ -36,9 +36,9 @@ Item {
     property real yHi: 1
     property int hoverIdx: -1
 
-    // Versteckte Seiten werden nicht gezeichnet; beim Einblenden wird einmal nachgeholt.
+    // Hidden pages are not drawn; when shown again, it catches up once.
     function repaint() { if (visible) cv.requestPaint() }
-    // direkt auf die Leinwand gezeichneter Text: Änderung der Sprache löst ein Neuzeichnen aus
+    // text drawn directly on the canvas: a language change triggers a repaint
     readonly property string waitText: qsTr("Waiting for measurements …")
     onWaitTextChanged: cv.requestPaint()
     onHistChanged: repaint()
@@ -83,7 +83,7 @@ Item {
         hoverIdx = lo
     }
 
-    // Legende
+    // Legend
     Flow {
         id: legend
         width: parent.width
@@ -127,7 +127,7 @@ Item {
             var pw = R - L, ph = B - T
             if (pw < 20 || ph < 20) return
 
-            // y-Bereich
+            // y range
             var lo = Infinity, hi = -Infinity, s, i
             for (s = 0; s < root.series.length; s++) {
                 var arr = root.hist[root.series[s].key]
@@ -161,7 +161,7 @@ Item {
             function X(t) { return L + (t - root.tStart) / root.windowSeconds * pw }
             function Y(val) { return T + (1 - (val - lo) / (hi - lo)) * ph }
 
-            // Raster und y-Beschriftung
+            // Grid and y labels
             ctx.font = "11px sans-serif"
             ctx.textAlign = "right"
             ctx.textBaseline = "middle"
@@ -176,7 +176,7 @@ Item {
                 ctx.fillText(gv.toFixed(root.decimals), L - 8, gy)
             }
 
-            // x-Beschriftung (Uhrzeit)
+            // x labels (time of day)
             var ts = root.windowSeconds <= 60 ? 10 : root.windowSeconds <= 300 ? 60 : root.windowSeconds <= 900 ? 180 : 600
             ctx.textAlign = "center"
             ctx.textBaseline = "alphabetic"
@@ -196,7 +196,7 @@ Item {
                 return
             }
 
-            // Profil-Ereignisse
+            // Profile events
             var rowEnd = [-1e9, -1e9, -1e9]
             var labels = []
             for (i = 0; i < root.evs.length; i++) {
@@ -212,7 +212,7 @@ Item {
                     ctx.font = "10px sans-serif"
                     ctx.textAlign = "left"
                     var tw = ctx.measureText(e.text).width
-                    var lx = Math.max(L + 2, Math.min(ex + 5, R - tw - 4))   // lange Texte nicht über den Rand
+                    var lx = Math.max(L + 2, Math.min(ex + 5, R - tw - 4))   // keep long texts inside the edge
                     for (var row = 0; row < 3; row++) {
                         if (lx >= rowEnd[row]) {
                             labels.push({ x: lx, y: T + 18 + row * 12, w: tw, text: e.text })
@@ -224,7 +224,7 @@ Item {
                 }
             }
 
-            // Segmente (Lücken bei fehlenden Werten)
+            // Segments (gaps for missing values)
             function segments(key) {
                 var a = root.hist[key], t = root.tArr, out = [], cur = []
                 if (!a) return out
@@ -238,7 +238,7 @@ Item {
                 return out
             }
 
-            // Fläche + Spiegelung für die Hauptreihe
+            // Area + reflection for the main series
             var fillS = null
             for (s = 0; s < root.series.length; s++) {
                 if (root.series[s].key === root.fillKey) fillS = root.series[s]
@@ -259,7 +259,7 @@ Item {
                     ctx.closePath()
                     ctx.fill()
                 }
-                // Spiegelung unter der Achse
+                // Reflection below the axis
                 ctx.save()
                 ctx.beginPath(); ctx.rect(L, B, pw, root.reflH); ctx.clip()
                 ctx.translate(0, 2 * B)
@@ -281,12 +281,12 @@ Item {
                 ctx.restore()
             }
 
-            // Achslinie
+            // Axis line
             ctx.strokeStyle = Theme.rgba(Theme.redSoft, 0.45)
             ctx.lineWidth = 1
             ctx.beginPath(); ctx.moveTo(L, Math.round(B) + 0.5); ctx.lineTo(R, Math.round(B) + 0.5); ctx.stroke()
 
-            // Linien mit Leuchten
+            // Lines with glow
             for (s = 0; s < root.series.length; s++) {
                 var ss = segments(root.series[s].key)
                 ctx.save()
@@ -304,7 +304,7 @@ Item {
                     ctx.beginPath()
                     ctx.moveTo(p[0][0], p[0][1])
                     for (var q = 1; q < p.length; q++) ctx.lineTo(p[q][0], p[q][1])
-                    // Leuchten ohne Weichzeichner: zwei breitere, halbtransparente Durchgänge unter der Linie
+                    // Glow without blur: two wider, semi-transparent passes under the line
                     ctx.lineWidth = baseW + (root.compact ? 5 : 8)
                     ctx.strokeStyle = root.rgba(col, 0.10)
                     ctx.stroke()
@@ -318,7 +318,7 @@ Item {
                 ctx.restore()
             }
 
-            // Beschriftung der Profilwechsel über den Linien, mit dunklem Hintergrund
+            // Labels of the profile changes above the lines, with a dark background
             ctx.font = "10px sans-serif"
             ctx.textAlign = "left"
             for (i = 0; i < labels.length; i++) {
@@ -331,7 +331,7 @@ Item {
         }
     }
 
-    // Hover: Fadenkreuz, Punkte und Werte
+    // Hover: crosshair, points and values
     MouseArea {
         anchors.fill: cv
         hoverEnabled: true

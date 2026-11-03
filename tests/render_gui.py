@@ -1,6 +1,6 @@
-"""Rendert die GUI-Seiten offscreen mit simulierten Daten als PNG (zur Sichtprüfung).
+"""Renders the GUI pages offscreen with simulated data as PNG (for visual inspection).
 
-Aufruf: python render_gui.py AUSGABEORDNER [Seite ...]
+Usage: python render_gui.py OUTPUT_DIR [page ...]
 """
 
 import os
@@ -58,7 +58,7 @@ def main():
     for p in pages:
         win.setProperty("page", p)
         pump(0.6)
-        win.grabWindow()  # erzwingt Rendern, damit Animationen weiterlaufen
+        win.grabWindow()  # forces rendering so that animations keep running
         pump(0.4)
         win.grabWindow()
         pump(0.4)
@@ -68,7 +68,7 @@ def main():
         print("geschrieben", path, img.width(), img.height())
     extra = os.environ.get("HWPANEL_EXTRA")
     if extra:
-        # dialog-new | dialog-edit | dialog-fan (KI, Reiter Lüfter) | dialog-new-fan | manual-fan | toast
+        # dialog-new | dialog-edit | dialog-fan (profile KI, fan tab) | dialog-new-fan | manual-fan | toast
         win.setProperty("page", 3 if extra == "manual-fan" else 2)
         pump(0.5)
         dlg = win.findChild(QObject, "profileDialog")
@@ -90,7 +90,7 @@ def main():
         print("geschrieben", out / f"x_{extra}.png")
     backend.shutdown()
     sys.stdout.flush()
-    os._exit(0)  # Teardown-Meldungen der QML-Bindungen vermeiden
+    os._exit(0)  # avoid teardown messages from the QML bindings
 
 
 if __name__ == "__main__":

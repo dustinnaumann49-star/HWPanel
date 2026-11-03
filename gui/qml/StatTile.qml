@@ -9,8 +9,8 @@ Item {
     property string value: "–"
     property string unit: ""
     property string sub: ""
-    property string tip: ""      // Hinweistext beim Darüberfahren
-    property bool warn: false    // Untertitel rot hervorheben
+    property string tip: ""      // Hint text on hover
+    property bool warn: false    // highlight subtitle in red
     implicitWidth: 120
     implicitHeight: col.implicitHeight
 

@@ -7,7 +7,7 @@ Item {
     property string title: ""
     property string unit: ""
     property string note: ""
-    property string hint: ""     // Erklärung beim Darüberfahren über die Beschriftung
+    property string hint: ""     // Explanation on hover over the label
     property real from: 0
     property real to: 100
     property real value: 0

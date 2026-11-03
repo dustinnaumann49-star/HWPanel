@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import "."
 
-// Kleine Beschriftung mit Erklärung beim Darüberfahren. Ein "?" zeigt, dass es eine gibt.
+// Small label with an explanation on hover. A "?" shows that there is one.
 Item {
     id: root
     property string text: ""
