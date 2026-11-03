@@ -71,5 +71,40 @@ class TestDocsLinks(unittest.TestCase):
             self.assertIn("tests/demo_client.py", read(name), name)
 
 
+WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
+
+
+class TestCiWorkflow(unittest.TestCase):
+    """The GitHub workflow runs the tests, and what it tests matches what the READMEs promise."""
+
+    @classmethod
+    def setUpClass(cls):
+        assert WORKFLOW.exists(), f"{WORKFLOW.relative_to(ROOT)} is missing"
+        cls.text = WORKFLOW.read_text(encoding="utf-8")
+
+    def test_it_runs_the_suite_on_pushes_and_pull_requests(self):
+        for needle in ("push:", "pull_request:", "python -m unittest discover -s tests"):
+            self.assertIn(needle, self.text)
+
+    def test_it_has_read_only_rights(self):
+        # a workflow that runs code from pull requests must not be able to write to the repository
+        self.assertRegex(self.text, r"(?m)^permissions:\n  contents: read$")
+
+    def test_the_lowest_python_the_readmes_promise_is_the_lowest_one_tested(self):
+        promised = {name: re.search(r"Python ≥ (3\.\d+)", read(name)) for name in ("README.md", "README.de.md")}
+        self.assertTrue(all(promised.values()), "a README names no minimum Python version")
+        self.assertEqual(len({m.group(1) for m in promised.values()}), 1, "the READMEs disagree")
+        minimum = promised["README.md"].group(1)
+        matrix = re.search(r"python:\s*\[([^\]]*)\]", self.text)
+        self.assertTrue(matrix, "no Python matrix in the workflow")
+        tested = re.findall(r"3\.\d+", matrix.group(1))
+        self.assertEqual(min(tested, key=lambda v: int(v.split(".")[1])), minimum)
+
+    def test_the_gui_job_fails_when_a_test_is_skipped(self):
+        # without this a missing library would turn the GUI tests into silent skips and the job would stay green
+        self.assertIn("grep -q skipped", self.text)
+        self.assertIn("PySide6", self.text)
+
+
 if __name__ == "__main__":
     unittest.main()

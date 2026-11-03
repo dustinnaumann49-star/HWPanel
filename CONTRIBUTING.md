@@ -12,6 +12,7 @@ Thanks for your interest! Please note:
 ## Development
 
 - Run the tests before and after your change: `python3 -m unittest discover -s tests`. They run on emulated hardware: no AMD GPU is needed and no hardware settings are changed. The GUI tests need PySide6 and are skipped without it (with PySide6 set `QT_QPA_PLATFORM=offscreen`).
+- Pull requests are checked automatically: GitHub runs the tests on several Python versions without the GUI (the lowest is the one the README promises) and the GUI tests with PySide6. A pull request should be green before it is merged. The workflow is `.github/workflows/tests.yml`.
 - New behavior needs a test. Bug fixes should come with a test that fails without the fix.
 - Hardware safety comes first. The daemon writes only to the whitelist of sysfs paths in `write_allowed()` and rejects values above the driver defaults. Changes to this, to the fan protection rules or to `hwpanel.service` need tests; `tests/test_service_unit.py` guards the hardening.
 - Language: comments, docstrings, failure messages of the tests and the source texts of the interface are English. German (and any other language) lives in `locales/<code>.json`. `tests/test_i18n.py` checks this.

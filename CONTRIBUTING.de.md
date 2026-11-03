@@ -12,6 +12,7 @@ Danke für dein Interesse! Bitte beachte:
 ## Entwicklung
 
 - Führe die Tests vor und nach deiner Änderung aus: `python3 -m unittest discover -s tests`. Sie laufen auf nachgebauter Hardware: Es wird keine AMD-GPU gebraucht, und es werden keine Hardware-Einstellungen verändert. Die GUI-Tests brauchen PySide6 und werden ohne übersprungen (mit PySide6 `QT_QPA_PLATFORM=offscreen` setzen).
+- Pull Requests werden automatisch geprüft: GitHub lässt die Tests auf mehreren Python-Versionen ohne GUI laufen (die niedrigste ist die, die die README verspricht) und die GUI-Tests mit PySide6. Ein Pull Request sollte grün sein, bevor er übernommen wird. Der Workflow liegt in `.github/workflows/tests.yml`.
 - Neues Verhalten braucht einen Test. Eine Fehlerbehebung sollte einen Test mitbringen, der ohne die Behebung fehlschlägt.
 - Hardware-Sicherheit geht vor. Der Daemon schreibt nur auf die Whitelist von sysfs-Pfaden in `write_allowed()` und lehnt Werte über den Treiber-Standardwerten ab. Änderungen daran, an den Schutzregeln des Lüfters oder an `hwpanel.service` brauchen Tests; `tests/test_service_unit.py` bewacht die Härtung.
 - Sprache: Kommentare, Docstrings, Fehlermeldungen der Tests und die Quelltexte der Oberfläche sind Englisch. Deutsch (und jede andere Sprache) steht in `locales/<kürzel>.json`. `tests/test_i18n.py` prüft das.

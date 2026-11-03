@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE_GLOBS = ("*.py", "gui/*.py", "tests/*.py", "gui/qml/*.qml", "gui/qml/*.js", "install.sh", "hwpanel.service")
+SOURCE_GLOBS = ("*.py", "gui/*.py", "tests/*.py", "gui/qml/*.qml", "gui/qml/*.js", "install.sh", "hwpanel.service",
+                ".github/workflows/*.yml")
 # optional shebang, then the SPDX line, then the copyright line; "#" or "//" depending on the language
 NOTICE = re.compile(r"\A(?:#!.*\n)?(?:#|//) SPDX-License-Identifier: GPL-3\.0-or-later\n"
                     r"(?:#|//) Copyright \(C\) (?P<years>\d{4}(?:-\d{4})?) (?P<holder>\S.*)\n")

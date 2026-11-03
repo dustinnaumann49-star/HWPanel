@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
+# Runs the whole test suite on every push to main and on every pull request.
+#   core: daemon, command line, installer and the checks of the repository on several Python versions,
+#         without PySide6 (the GUI tests are skipped there).
+#   gui:  everything including the GUI tests, with PySide6 rendering offscreen. No test may be skipped.
+# The tests use emulated hardware: no GPU is needed and no hardware setting is changed.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Python ${{ matrix.python }} without GUI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.8", "3.10", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run the tests (without PySide6 the GUI tests are skipped)
+        run: python -m unittest discover -s tests
+
+  gui:
+    name: GUI tests with PySide6 (offscreen)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install the system libraries and a font for Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libglib2.0-0 fonts-noto-core
+      - name: Install PySide6
+        run: python -m pip install "PySide6>=6.6,<7"
+      - name: Run all tests (none may be skipped)
+        shell: bash
+        run: |
+          python -m unittest discover -s tests 2>&1 | tee test.log
+          if grep -q skipped test.log; then echo "Some tests were skipped"; exit 1; fi
