@@ -47,6 +47,7 @@ hwpanel ändert Hardware-Einstellungen (GPU- und CPU-Takt, Power-Limit, Lüfterd
 
 Bisher nur auf einem System: CachyOS (Arch-basiert), Kernel 6.18 LTS, systemd 262, Python 3.14, PySide6 6.12, KDE Plasma 6 (Wayland), AMD Radeon RX 6750 XT (RDNA 2), Intel Core i7-6700K (`intel_pstate`).
 Andere Grafikkarten (z. B. RDNA 3 und neuer), `amd-pstate`, ältere Python- und systemd-Versionen und andere Distributionen sind ungetestet. Berichte über andere Hardware sind willkommen.
+Auf diesem System wurde der Lüfter-Rückfall auf Automatik auch live ausprobiert, nach einem harten Kill des Daemons und nach dem Einfrieren (systemd-Watchdog); siehe [Diagnose](#diagnose).
 
 ## Installation (fish/bash)
 
@@ -138,7 +139,6 @@ Die mitgelieferten Profile `Gaming` und `KI` enthalten keine Lüfterkurve (Autom
 - Nur auf einem System getestet (RDNA 2, `intel_pstate`). Neuere GPUs, `amd-pstate`, ältere Python- und systemd-Versionen und andere Distributionen sind ungetestet (siehe [Getestet mit](#getestet-mit)).
 - Gesteuert wird nur die erste gefundene AMD-Grafikkarte. Systeme mit mehreren AMD-GPUs (zum Beispiel eine AMD-Grafikeinheit im Prozessor plus eine dedizierte Karte) sind ungetestet.
 - Die Takt-Obergrenzen brauchen die Overdrive-Schnittstelle (`pp_od_clk_voltage`), auf manchen Systemen nur mit `amdgpu.ppfeaturemask=0xffffffff`. Ohne sie sollten Überwachung, Power-Limit und Lüfter weiter funktionieren, das ist aber ungetestet.
-- Der Lüfter-Rückfall auf Automatik nach einem Daemon-Absturz ist auf echter Hardware getestet (siehe [Diagnose](#diagnose)). Der Rückfall nach einem Hänger (systemd-Watchdog) ist nur durch die Unit-Datei und die Tests abgedeckt, aber nicht live ausprobiert.
 - Die Lüfterkonfiguration bleibt über einen Daemon-Neustart nicht erhalten: Der Lüfter steht auf Automatik, bis ein Profil angewendet wird (siehe [Lüftersteuerung](#lüftersteuerung)).
 - RAM: nur Anzeige. Das Tray-Icon braucht eine Desktopumgebung mit StatusNotifier-Unterstützung.
 
@@ -165,6 +165,16 @@ cat /sys/class/drm/card*/device/hwmon/hwmon*/pwm1_enable
 ```
 
 Ohne `--kill-whom=main` tötet systemd auch den `ExecStopPost`-Prozess, der den Lüfter zurücksetzt. Der Test wäre dann wertlos.
+
+Den Lüfter-Rückfall nach einem Hänger prüfst du, indem du den Hauptprozess einfrierst, statt ihn zu töten. Nach der Watchdog-Zeit (20 s) beendet ihn systemd, und `pwm1_enable` muss wieder 2 sein. Lass die GPU dabei im Leerlauf, denn der Lüfter bleibt bis dahin auf seiner letzten Drehzahl:
+
+```
+hwpanelctl fan curve 30:40,50:55,80:90
+sudo systemctl kill --kill-whom=main -s STOP hwpanel
+sleep 25; cat /sys/class/drm/card*/device/hwmon/hwmon*/pwm1_enable
+```
+
+Im Journal stehen danach `Watchdog timeout (limit 20s)!` und `code=dumped, status=6/ABRT`. So beendet systemd einen hängenden Prozess, das ist kein zweites Problem. Der Dienst startet nach 3 s von selbst neu.
 
 ## Tests
 

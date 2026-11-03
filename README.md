@@ -47,6 +47,7 @@ hwpanel changes hardware settings (GPU and CPU clocks, power limit, fan speed). 
 
 So far on one system only: CachyOS (Arch-based), kernel 6.18 LTS, systemd 262, Python 3.14, PySide6 6.12, KDE Plasma 6 (Wayland), AMD Radeon RX 6750 XT (RDNA 2), Intel Core i7-6700K (`intel_pstate`).
 Other graphics cards (e.g. RDNA 3 and newer), `amd-pstate`, older Python and systemd versions and other distributions are untested. Reports from other hardware are welcome.
+On this system the fan fallback to automatic was also tried live, after a hard kill of the daemon and after freezing it (systemd watchdog); see [Diagnostics](#diagnostics).
 
 ## Installation (fish/bash)
 
@@ -138,7 +139,6 @@ The shipped profiles `Gaming` and `KI` contain no fan curve (automatic). Create 
 - Tested on one system only (RDNA 2, `intel_pstate`). Newer GPUs, `amd-pstate`, older Python and systemd versions and other distributions are untested (see [Tested with](#tested-with)).
 - Only the first AMD graphics card that is found is controlled. Systems with several AMD GPUs (for example an AMD integrated GPU plus a dedicated card) are untested.
 - The clock limits need the Overdrive interface (`pp_od_clk_voltage`), on some systems only with `amdgpu.ppfeaturemask=0xffffffff`. Without it, monitoring, power limit and fan control should keep working, but this is untested.
-- The fan fallback to automatic after a daemon crash is tested on real hardware (see [Diagnostics](#diagnostics)). The fallback after a hang (systemd watchdog) is only covered by the unit file and the tests, not tried live.
 - The fan configuration is not kept across a daemon restart: the fan is on automatic until a profile is applied (see [Fan control](#fan-control)).
 - RAM is display only. The tray icon needs a desktop environment with StatusNotifier support.
 
@@ -165,6 +165,16 @@ cat /sys/class/drm/card*/device/hwmon/hwmon*/pwm1_enable
 ```
 
 Without `--kill-whom=main` systemd also kills the `ExecStopPost` process that resets the fan, which makes the test worthless.
+
+To check the fan fallback after a hang, freeze the main process instead of killing it. After the watchdog time (20 s) systemd ends it, and `pwm1_enable` must be 2 again. Keep the GPU idle while you test, because the fan stays at its last speed until then:
+
+```
+hwpanelctl fan curve 30:40,50:55,80:90
+sudo systemctl kill --kill-whom=main -s STOP hwpanel
+sleep 25; cat /sys/class/drm/card*/device/hwmon/hwmon*/pwm1_enable
+```
+
+The journal then shows `Watchdog timeout (limit 20s)!` and `code=dumped, status=6/ABRT`. That is how systemd ends a hung process, not a second problem. The service restarts by itself after 3 s.
 
 ## Tests
 
