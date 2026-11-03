@@ -123,3 +123,8 @@ QT_QPA_PLATFORM=offscreen python3 -m unittest tests.test_gui_backend tests.test_
 python3 tests/render_gui.py /tmp/shots                # GUI mit Demo-Daten als PNG rendern
 python3 tests/bench_gui.py                            # Zeichenzeiten (Start, Seitenwechsel, Updates) messen
 ```
+
+## Lizenz
+
+hwpanel steht unter der [GNU General Public License, Version 3 oder (nach deiner Wahl) jeder späteren Version](LICENSE) (GPL-3.0-or-later).
+Daemon und CLI brauchen nur die Python-Standardbibliothek. Die GUI nutzt PySide6 (LGPL) als Bibliothek, `dmidecode` wird als eigenes Programm aufgerufen.
