@@ -50,6 +50,7 @@ hwpanel ändert Hardware-Einstellungen (GPU- und CPU-Takt, Power-Limit, Lüfterd
 Bisher nur auf einem System: CachyOS (Arch-basiert), Kernel 6.18 LTS, systemd 262, Python 3.14, PySide6 6.12, KDE Plasma 6 (Wayland), AMD Radeon RX 6750 XT (RDNA 2), Intel Core i7-6700K (`intel_pstate`).
 Andere Grafikkarten (z. B. RDNA 3 und neuer), `amd-pstate`, ältere systemd-Versionen und andere Distributionen sind ungetestet. Berichte über andere Hardware sind willkommen.
 Die automatischen Tests (auf nachgebauter Hardware) laufen in GitHub Actions auf Python 3.8 und mehreren neueren Versionen bis 3.14.
+Das Arch-Paket (`packaging/arch`) wurde auf diesem System installiert, gestartet und benutzt, auch der Zugriff über die Gruppe `hwpanel`.
 Auf diesem System wurde der Lüfter-Rückfall auf Automatik auch live ausprobiert, nach einem harten Kill des Daemons und nach dem Einfrieren (systemd-Watchdog); siehe [Diagnose](#diagnose).
 
 ## Installation (fish/bash)
@@ -64,6 +65,20 @@ Entfernen: `sudo bash install.sh --uninstall`.
 
 Beim ersten Start setzt der Daemon die GPU einmal auf Treiberstandard zurück (`r` + `c`) und speichert
 die Werte in `/var/lib/hwpanel/defaults.json`. Danach wirken diese Werte als Obergrenze.
+
+### Arch Linux und CachyOS: als Paket
+
+Im Repository liegt ein `PKGBUILD`, das das Release als Paket baut. Es installiert nach `/usr/lib/hwpanel` statt nach `/usr/local` und legt für den Socket die Gruppe `hwpanel` an:
+
+```
+git clone https://github.com/dustinnaumann49-star/HWPanel.git
+cd HWPanel/packaging/arch
+makepkg -si
+sudo systemctl enable --now hwpanel
+sudo usermod -aG hwpanel $USER       # danach neu anmelden; ohne sie brauchen hwpanelctl und die GUI sudo
+```
+
+Benutze entweder das Paket oder `install.sh`, nicht beides: Entferne vorher das jeweils andere (`sudo bash install.sh --uninstall` oder `sudo pacman -R hwpanel`). `lactd` muss weiterhin deaktiviert bleiben (siehe oben). Beim Paket gilt in der Diagnose unten `/usr/lib/hwpanel/hwpaneld.py` statt `/usr/local/lib/hwpanel/hwpaneld.py`. Das Paket baut das Release, das `pkgver` im `PKGBUILD` nennt.
 
 ## GUI
 

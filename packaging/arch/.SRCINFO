@@ -1,0 +1,17 @@
+pkgbase = hwpanel
+	pkgdesc = AMD GPU/CPU monitoring, clock limits and fan curves (daemon, CLI and Qt GUI)
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/dustinnaumann49-star/HWPanel
+	install = hwpanel.install
+	arch = any
+	license = GPL-3.0-or-later
+	depends = python
+	depends = systemd
+	depends = hicolor-icon-theme
+	optdepends = pyside6: graphical user interface and tray icon
+	optdepends = dmidecode: shows the RAM modules
+	source = hwpanel-0.1.0.tar.gz::https://github.com/dustinnaumann49-star/HWPanel/archive/refs/tags/v0.1.0.tar.gz
+	sha256sums = 47c265d47f8596ff1720d56fe399a7d2c84dd30f8b252e67d98b51667235fc0e
+
+pkgname = hwpanel

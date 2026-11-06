@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+
+post_install() {
+    cat <<'EOF'
+
+==> hwpanel is installed but not started yet.
+    1. lactd (LACT) writes to the same sysfs files. If you use it, switch it off first:
+         sudo systemctl disable --now lactd
+    2. Start hwpanel:
+         sudo systemctl enable --now hwpanel
+    3. To use hwpanelctl and hwpanel-gui without sudo, join the group "hwpanel" and log in again:
+         sudo usermod -aG hwpanel $USER
+    The GUI needs the optional dependency pyside6.
+EOF
+}
+
+post_upgrade() {
+    cat <<'EOF'
+
+==> hwpanel was updated. Restart the daemon to use the new version:
+      sudo systemctl restart hwpanel
+EOF
+}
+
+pre_remove() {
+    # stopping the daemon hands the fan back to the driver's automatic mode (ExecStopPost)
+    systemctl disable --now hwpanel.service >/dev/null 2>&1 || true
+}

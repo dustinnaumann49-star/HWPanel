@@ -370,7 +370,7 @@ _GERMAN_WORDS = ("der das dem ein eine einen einem einer eines und oder nicht is
                  "muss darf kann soll steht gehört sich dieser diese dieses wieder immer").split()
 GERMAN_WORDS = re.compile(r"\b(?:%s)\b" % "|".join(f"{w}|{w.capitalize()}" for w in _GERMAN_WORDS))
 SOURCE_GLOBS = ("*.py", "gui/*.py", "tests/*.py", "gui/qml/*.qml", "gui/qml/*.js", "install.sh", "hwpanel.service",
-                ".github/workflows/*.yml")
+                ".github/workflows/*.yml", "packaging/arch/PKGBUILD", "packaging/arch/hwpanel.install")
 
 
 def source_files():
@@ -447,7 +447,7 @@ class TestSourceLanguage(unittest.TestCase):
         seen = {f.suffix: 0 for f in source_files()}
         for f in source_files():
             seen[f.suffix] += sum(1 for _ in comments(f))
-        self.assertEqual(sorted(seen), [".js", ".py", ".qml", ".service", ".sh", ".yml"])
+        self.assertEqual(sorted(seen), ["", ".install", ".js", ".py", ".qml", ".service", ".sh", ".yml"])   # "" is the PKGBUILD
         self.assertEqual([s for s, n in seen.items() if n == 0], [])
         names = {str(f.relative_to(ROOT)) for f in source_files()}
         self.assertLessEqual({"hwpaneld.py", "hwpanelctl.py", "hwpanel_i18n.py", "gui/backend.py", "gui/qml/Theme.qml",

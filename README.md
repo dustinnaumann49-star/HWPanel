@@ -50,6 +50,7 @@ hwpanel changes hardware settings (GPU and CPU clocks, power limit, fan speed). 
 So far on one system only: CachyOS (Arch-based), kernel 6.18 LTS, systemd 262, Python 3.14, PySide6 6.12, KDE Plasma 6 (Wayland), AMD Radeon RX 6750 XT (RDNA 2), Intel Core i7-6700K (`intel_pstate`).
 Other graphics cards (e.g. RDNA 3 and newer), `amd-pstate`, older systemd versions and other distributions are untested. Reports from other hardware are welcome.
 The automated tests (on emulated hardware) run in GitHub Actions on Python 3.8 and several newer versions up to 3.14.
+The Arch package (`packaging/arch`) was installed, started and used on this system, including the access through the group `hwpanel`.
 On this system the fan fallback to automatic was also tried live, after a hard kill of the daemon and after freezing it (systemd watchdog); see [Diagnostics](#diagnostics).
 
 ## Installation (fish/bash)
@@ -64,6 +65,20 @@ To remove: `sudo bash install.sh --uninstall`.
 
 On the first start the daemon resets the GPU to the driver defaults once (`r` + `c`) and stores the values in
 `/var/lib/hwpanel/defaults.json`. From then on these values act as the upper limit.
+
+### Arch Linux and CachyOS: as a package
+
+The repository contains a `PKGBUILD` that builds the release as a package. It installs to `/usr/lib/hwpanel` instead of `/usr/local` and creates the group `hwpanel` for the socket:
+
+```
+git clone https://github.com/dustinnaumann49-star/HWPanel.git
+cd HWPanel/packaging/arch
+makepkg -si
+sudo systemctl enable --now hwpanel
+sudo usermod -aG hwpanel $USER       # then log in again; without it hwpanelctl and the GUI need sudo
+```
+
+Use either the package or `install.sh`, not both: remove the other one first (`sudo bash install.sh --uninstall` or `sudo pacman -R hwpanel`). `lactd` must still be disabled (see above). With the package, the diagnostics below use `/usr/lib/hwpanel/hwpaneld.py` instead of `/usr/local/lib/hwpanel/hwpaneld.py`. The package builds the release named by `pkgver` in the `PKGBUILD`.
 
 ## GUI
 

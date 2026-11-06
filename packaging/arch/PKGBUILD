@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 shadoweagle
+# Maintainer: shadoweagle
+
+pkgname=hwpanel
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='AMD GPU/CPU monitoring, clock limits and fan curves (daemon, CLI and Qt GUI)'
+arch=('any')
+url='https://github.com/dustinnaumann49-star/HWPanel'
+license=('GPL-3.0-or-later')
+depends=('python' 'systemd' 'hicolor-icon-theme')
+optdepends=('pyside6: graphical user interface and tray icon'
+            'dmidecode: shows the RAM modules')
+install=hwpanel.install
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('47c265d47f8596ff1720d56fe399a7d2c84dd30f8b252e67d98b51667235fc0e')
+
+package() {
+    cd "HWPanel-$pkgver"
+    local lib=/usr/lib/hwpanel
+
+    # program files; the scripts find hwpanel_i18n.py and locales/ next to themselves
+    install -Dm755 hwpaneld.py "$pkgdir$lib/hwpaneld.py"
+    install -Dm755 hwpanelctl.py "$pkgdir$lib/hwpanelctl.py"
+    install -Dm644 hwpanel_i18n.py "$pkgdir$lib/hwpanel_i18n.py"
+    cp -r locales gui "$pkgdir$lib/"
+    find "$pkgdir$lib/locales" "$pkgdir$lib/gui" -name __pycache__ -type d -prune -exec rm -rf {} +
+    find "$pkgdir$lib/locales" "$pkgdir$lib/gui" -type d -exec chmod 755 {} +
+    find "$pkgdir$lib/locales" "$pkgdir$lib/gui" -type f -exec chmod 644 {} +
+
+    # commands: through the link Python finds hwpanel_i18n.py next to the real script
+    install -d "$pkgdir/usr/bin"
+    ln -s "$lib/hwpanelctl.py" "$pkgdir/usr/bin/hwpanelctl"
+    printf '#!/bin/sh\nexec python3 %s/gui/hwpanel_gui.py "$@"\n' "$lib" | install -Dm755 /dev/stdin "$pkgdir/usr/bin/hwpanel-gui"
+
+    # systemd unit: the project's unit points to /usr/local, a package belongs in /usr
+    sed "s|/usr/local/lib/hwpanel|$lib|g" hwpanel.service | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/hwpanel.service"
+
+    # socket group "hwpanel": created by sysusers, named in the default config that tmpfiles writes once
+    printf 'g hwpanel -\n' | install -Dm644 /dev/stdin "$pkgdir/usr/lib/sysusers.d/hwpanel.conf"
+    install -Dm644 /dev/stdin "$pkgdir/usr/lib/tmpfiles.d/hwpanel.conf" <<'EOF'
+d /var/lib/hwpanel 0755 root root -
+f /var/lib/hwpanel/config.json 0644 root root - {"autostart_profile": null, "socket_group": "hwpanel", "gpu_card": null}
+EOF
+
+    # desktop entry and icon for the GUI
+    install -Dm644 gui/hwpanel.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/hwpanel.svg"
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/hwpanel.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=hwpanel
+Comment=GPU/CPU monitoring and clock limits
+Comment[de]=GPU/CPU-Überwachung und Taktbegrenzung
+Exec=hwpanel-gui
+Icon=hwpanel
+Terminal=false
+Categories=System;Monitor;
+EOF
+
+    install -Dm644 README.md README.de.md -t "$pkgdir/usr/share/doc/$pkgname/"
+}
